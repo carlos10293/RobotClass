@@ -3,136 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoboClass - Ingeniería Profesional</title>
+    <title>RoboClass - Plan Maestro Completo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; user-select: none; overflow-x: hidden; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f1f5f9; 
+            user-select: none; 
+            overflow-x: hidden;
+        }
+        
         .node-completed { background: #10b981; border-color: #059669; color: white; }
         .node-current { background: #3b82f6; border-color: #2563eb; color: white; animation: pulse 2s infinite; }
         .node-locked { background: #cbd5e1; border-color: #94a3b8; color: #64748b; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        #path-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; opacity: 0.3; }
-        .option-correct { background-color: #dcfce7 !important; border-color: #22c55e !important; }
-        .option-wrong { background-color: #fee2e2 !important; border-color: #ef4444 !important; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        #path-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.2;
+        }
+
+        .option-correct { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #166534 !important; }
+        .option-wrong { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
+        
+        .btn-push { transition: all 0.1s; border-bottom: 4px solid; }
+        .btn-push:active { transform: translateY(2px); border-bottom-width: 2px; }
+
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-slate-50">
 
+    <!-- Header Fijo -->
     <nav class="fixed top-0 left-0 w-full bg-slate-900 text-white z-50 h-16 flex items-center justify-between px-6 shadow-xl">
         <div class="flex items-center gap-4">
-            <span class="text-xl font-black text-blue-400">ROBOCLASS <span class="text-white text-xs font-mono">PRO</span></span>
+            <span class="text-xl font-black text-blue-400">ROBOCLASS <span class="text-white text-[10px] font-mono border border-white/20 px-1 rounded uppercase">Master</span></span>
         </div>
-        <div class="flex gap-4 font-mono text-sm">
-            <div class="text-rose-400"><i class="fas fa-heart"></i> <span id="stat-lives">5</span></div>
-            <div class="text-blue-400"><i class="fas fa-bolt"></i> <span id="stat-xp">0</span> XP</div>
+        <div class="flex gap-6 font-mono text-sm items-center">
+            <div class="hidden md:block text-slate-400 text-[10px]">PROGRESO TOTAL: <span id="progress-pct">0%</span></div>
+            <div class="text-rose-400 flex items-center gap-2"><i class="fas fa-heart"></i> <span id="stat-lives">5</span></div>
+            <div class="text-blue-400 flex items-center gap-2"><i class="fas fa-bolt"></i> <span id="stat-xp">0</span> XP</div>
+            <button onclick="resetProgress()" class="text-slate-500 hover:text-white text-xs border border-slate-700 px-2 py-1 rounded">RESET</button>
         </div>
     </nav>
 
+    <!-- Mapa de Lecciones -->
     <main id="app-container" class="relative pt-24 pb-40 flex flex-col items-center min-h-screen">
         <canvas id="path-canvas"></canvas>
         <div id="map-content" class="w-full max-w-2xl flex flex-col items-center gap-8 relative px-4">
-            <!-- Cargando sistema... -->
+            <!-- Cargando 320 actividades... -->
         </div>
     </main>
 
-    <!-- Overlay de Lección -->
+    <!-- Modal de Lección -->
     <div id="lesson-overlay" class="fixed inset-0 bg-white z-[100] hidden flex flex-col">
         <div class="h-16 border-b flex items-center justify-between px-6">
-            <button onclick="closeLesson()" class="text-slate-500 font-bold">← VOLVER</button>
-            <div class="h-2 flex-1 mx-4 bg-slate-100 rounded-full overflow-hidden">
-                <div id="lesson-progress" class="h-full bg-blue-500 w-0 transition-all"></div>
+            <button onclick="closeLesson()" class="text-slate-500 font-bold flex items-center gap-2 hover:text-slate-800"><i class="fas fa-arrow-left"></i> VOLVER</button>
+            <div class="h-2 flex-1 mx-8 bg-slate-100 rounded-full overflow-hidden">
+                <div id="lesson-progress" class="h-full bg-blue-500 w-0 transition-all duration-500"></div>
             </div>
             <div class="font-bold text-rose-500"><i class="fas fa-heart"></i> <span id="modal-lives">5</span></div>
         </div>
+        
         <div class="flex-1 p-6 md:p-12 overflow-y-auto flex flex-col items-center">
             <div class="max-w-2xl w-full">
-                <h2 id="lesson-title" class="text-3xl font-black mb-6 text-slate-900"></h2>
-                <div class="bg-slate-50 p-6 rounded-2xl mb-6 border border-slate-200">
-                    <p id="lesson-q" class="text-lg font-medium text-slate-800"></p>
+                <div id="phase-tag" class="text-blue-600 font-bold text-xs uppercase tracking-widest mb-2">FASE</div>
+                <h2 id="lesson-title" class="text-3xl font-black mb-8 text-slate-900 leading-tight"></h2>
+                
+                <div class="bg-slate-50 p-8 rounded-3xl mb-8 border border-slate-200 shadow-sm">
+                    <p id="lesson-q" class="text-xl font-medium text-slate-800 leading-relaxed"></p>
                 </div>
-                <div id="quiz-options" class="grid gap-3"></div>
-                <div id="feedback-box" class="hidden mt-6 p-4 rounded-xl border-l-4">
-                    <p id="feedback-text" class="text-sm font-semibold"></p>
+                
+                <div id="quiz-options" class="grid gap-4"></div>
+                
+                <div id="feedback-box" class="hidden mt-8 p-6 rounded-2xl border-l-8 transform transition-all">
+                    <p id="feedback-text" class="font-bold"></p>
                 </div>
             </div>
         </div>
-        <div class="p-6 border-t flex justify-center">
-            <button id="check-btn" onclick="handleInteraction()" class="w-full max-w-md py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg">VERIFICAR RESPUESTA</button>
+
+        <div class="p-8 border-t bg-white flex justify-center">
+            <button id="check-btn" onclick="handleInteraction()" class="btn-push w-full max-w-md py-5 bg-blue-600 text-white rounded-2xl font-black text-lg border-blue-800 shadow-xl uppercase tracking-widest">
+                Verificar Análisis
+            </button>
         </div>
     </div>
 
-    <script type="module">
-        // --- ESTRUCTURA TÉCNICA (20 FASES x 16 LECCIONES) ---
-        const CURRICULUM = [
-            { n: "Electrónica de Potencia", l: ["Flujo electrones", "Ley Ohm", "Multímetro", "Serie", "Paralelo", "Colores Resistencia", "Capacitores", "Diodos", "Transistores", "Protoboard", "Caída Tensión", "CA vs CC", "Seguridad", "Soldadura", "Esquemas", "CERTIFICACIÓN 1"] },
-            { n: "Arquitectura Sistemas", l: ["Arduino", "ATmega328P", "IDE Setup", "Loops", "Variables", "DigitalWrite", "DigitalRead", "PWM", "AnalogRead", "Monitor Serial", "Lógica IF", "Ciclos FOR", "Funciones", "Librerías", "Interrupciones", "CERTIFICACIÓN 2"] },
-            { n: "Programación C++", l: ["Sintaxis", "Operadores", "Data Types", "Punteros", "Arreglos", "Estructuras", "Clases", "Objetos", "Herencia", "Polimorfismo", "Memoria", "Debugging", "Compilación", "Bitwise", "Estándares", "CERTIFICACIÓN 3"] },
-            { n: "Sensores y Señales", l: ["Infrarrojo", "Ultrasonido", "LDR", "DHT11", "IMU", "Giroscopio", "Presión", "Humedad", "Servos", "Motores DC", "Steppers", "Relés", "Solenoides", "Buzzer", "LCD", "CERTIFICACIÓN 4"] },
-            { n: "Control de Motores", l: ["Puente H", "A4988", "PWM Control", "Back-EMF", "Encoders", "Feedback", "Torque", "Ratios", "Servos 360", "Brushless", "ESC", "Bipolar", "Corriente", "Inducción", "Latencia", "CERTIFICACIÓN 5"] },
-            { n: "Diseño PCB", l: ["EDA", "Esquema", "Footprints", "Routing", "Ground Plane", "Vías", "DRC", "Librerías", "Gerbers", "SMD", "Stencil", "Assembly", "Continuidad", "Aislamiento", "ESD", "CERTIFICACIÓN 6"] },
-            { n: "Mecánica CAD", l: ["Coordenadas", "Extrusión", "Revolución", "Ensambles", "Mates", "Tolerancia", "Materiales", "Masa", "Simulación", "STL", "Planos", "Engranajes", "Poleas", "Articulación", "Threads", "CERTIFICACIÓN 7"] },
-            { n: "Impresión 3D", l: ["FDM", "Filamentos", "Slicing", "Capas", "Infill", "Supports", "Levelling", "Extrusión", "Adhesión", "Post-process", "Mechanicals", "Mantenimiento", "Errores", "SLA", "Design 3D", "CERTIFICACIÓN 8"] },
-            { n: "IoT y WiFi", l: ["HTTP", "MQTT", "ESP32", "Config", "BLE", "Blynk", "REST", "Servers", "JSON", "Security", "Nodes", "Deep Sleep", "OTA", "Cloud", "IFTTT", "CERTIFICACIÓN 9"] },
-            { n: "Control Lazo Cerrado", l: ["Open Loop", "Closed Loop", "Error", "Proporcional", "Integral", "Derivativo", "Tuning", "Ziegler", "Saturación", "Sampling", "Estabilidad", "Filtros", "Posición", "Velocidad", "Casos", "CERTIFICACIÓN 10"] },
-            { n: "Cinemática Móvil", l: ["Diferencial", "Odometría", "Trayectoria", "Obstáculos", "Line Follow", "Mapeo", "Encoders", "LiPo", "BMS", "Chasis", "Dinámica", "Giro", "Tracción", "Suspensión", "ROS Mobile", "CERTIFICACIÓN 11"] },
-            { n: "Brazos Robóticos", l: ["DoF", "Forward Kin.", "DH Params", "Inverse Kin.", "Jacobian", "End Effector", "Path Plan", "Precision", "High Torque", "Structure", "Grips", "Polar", "Matrices", "Singularity", "Safety", "CERTIFICACIÓN 12"] },
-            { n: "Visión Artificial", l: ["Resolución", "Espacios Color", "OpenCV", "Threshold", "Edges", "Contours", "Color Tracking", "Filtros", "Histograma", "Face Detect", "OCR", "Calibración", "PiCam", "FPS", "Deep Learning", "CERTIFICACIÓN 13"] },
-            { n: "IA Embebida", l: ["ML Intro", "Neuronas", "Training", "Datasets", "Edge AI", "TF Lite", "Regresión", "Clasificación", "Decisiones", "Fuzzy Logic", "NLP", "Agentes", "Optimización", "Models", "Hardware IA", "CERTIFICACIÓN 14"] },
-            { n: "Middleware ROS", l: ["Arquitectura", "Topics", "Messages", "Services", "Params", "Launch", "Catkin", "Gazebo", "Rviz", "TF2", "URDF", "Actions", "Bags", "Pub/Sub", "Multi-robot", "CERTIFICACIÓN 15"] },
-            { n: "Linux Embebido", l: ["Terminal", "Filesystem", "Permisos", "SSH", "Bash", "Packages", "Cron", "C++ Comp.", "Python", "GPIO", "Network", "Processes", "Monitor", "Kernel", "Embed Linux", "CERTIFICACIÓN 16"] },
-            { n: "Gestión Energía", l: ["Química", "Descarga C", "Balanceo", "PCM", "Buck/Boost", "LDO", "Efficiency", "Heat", "Solar", "Consumo", "Picos", "Galvanic", "Gauges", "EMI", "Power", "CERTIFICACIÓN 17"] },
-            { n: "Normativa ISO", l: ["Asimov", "ISO 10218", "Safety", "Privacy", "IP", "Patents", "Environment", "Obsolescence", "Social", "Liability", "Standards", "Docs", "Costs", "Marketing", "Ethics", "CERTIFICACIÓN 18"] },
-            { n: "Proyecto Final", l: ["Problema", "Estado Arte", "Presupuesto", "Gantt", "Conceptual", "BOM", "Modeling", "POC", "Iteration", "HW Final", "SW Final", "Integración", "User Manual", "Pitch", "Demo", "CERTIFICACIÓN 19"] },
-            { n: "Maestro Ingeniero", l: ["GitHub", "LinkedIn", "Resume", "Interviews", "Code Test", "Branding", "Networking", "Soft Skills", "English", "Freelance", "Portafolio", "Management", "Innovation", "Master", "Business", "MAESTRO FINAL"] }
+    <script>
+        // --- BASE DE DATOS COMPLETA (20 FASES x 16 ACTIVIDADES = 320) ---
+        const RAW_CURRICULUM = [
+            { n: "Fase 1: Fundamentos de Electrónica", l: ["Flujo electrones", "Ley Ohm", "Multímetro", "Circuitos Serie", "Circuitos Paralelo", "Resistencias", "Condensadores", "Diodos", "Transistores", "Protoboard", "Caída Tensión", "CA vs CC", "Seguridad", "Soldadura", "Esquemas", "EXAMEN NIVEL 1"] },
+            { n: "Fase 2: Arquitectura Arduino", l: ["Ecosistema", "Anatomía Placa", "Instalación IDE", "Setup y Loop", "Digital Write", "Digital Read", "Analog Read", "PWM Control", "Monitor Serial", "Variables", "Condicionales", "Bucles FOR", "Funciones", "Librerías", "Gestión Memoria", "EXAMEN NIVEL 2"] },
+            { n: "Fase 3: Programación C++", l: ["Sintaxis Básica", "Tipos Datos", "Operadores", "Punteros", "Arreglos", "Estructuras", "Clases y Objetos", "Herencia", "Polimorfismo", "Manejo Errores", "Bibliotecas Estándar", "Compilación", "Depuración", "Bitwise Ops", "Sistemas Numéricos", "EXAMEN NIVEL 3"] },
+            { n: "Fase 4: Sensores Avanzados", l: ["Infrarrojos", "Ultrasonidos", "Fotoresistencias", "DHT11/22", "Sensor Lluvia", "Giroscopio", "Acelerómetro", "Magnetómetro", "Presión", "Gas y CO2", "RFID", "Teclado Matricial", "LCD I2C", "OLED Display", "Interrupciones", "EXAMEN NIVEL 4"] },
+            { n: "Fase 5: Actuadores y Motores", l: ["Servos", "Motores DC", "Puente H L298N", "Control Velocidad", "Motores Paso a Paso", "Drivers A4988", "Relés", "Solenoides", "Buzzer Pasivo", "Altavoces", "Motores Brushless", "ESC", "Pneumática Básica", "Hidráulica Básica", "Consumo Corriente", "EXAMEN NIVEL 5"] },
+            { n: "Fase 6: Diseño de PCBs", l: ["Introducción EDA", "Captura Esquema", "Footprints", "Ruteado Manual", "Planos Tierra", "Vías y Capas", "Reglas Diseño", "Librerías Custom", "Archivos Gerber", "Componentes SMD", "Soldadura SMD", "Stencil y Pasta", "Inspección Visual", "Test Continuidad", "Aislamiento EMI", "EXAMEN NIVEL 6"] },
+            { n: "Fase 7: Mecánica y CAD", l: ["Software CAD", "Planos 2D", "Modelado 3D", "Ensambles", "Restricciones", "Tolerancias", "Propiedades Material", "Simulación Estática", "Mecanismos", "Engranajes", "Transmisión", "Poleas", "Articulaciones", "Exportar STL", "Renders", "EXAMEN NIVEL 7"] },
+            { n: "Fase 8: Fabricación Digital", l: ["Tecnología FDM", "Tipos Filamento", "Slicing Soft", "Altura Capa", "Relleno (Infill)", "Soportes", "Nivelación Cama", "Calibración Pasos", "Adhesión", "Post-procesado", "Fallas Comunes", "Mantenimiento", "Corte Láser", "Fresado CNC", "Seguridad Taller", "EXAMEN NIVEL 8"] },
+            { n: "Fase 9: IoT y Comunicación", l: ["Protocolo HTTP", "MQTT Básicos", "Configuración ESP32", "Deep Sleep", "Blynk/Thingspeak", "API REST", "Servidores Web", "JSON Parsing", "Seguridad WiFi", "Módulos Lora", "Bluetooth BLE", "OTA Updates", "Nodos Sensores", "Dashboard IoT", "Websockets", "EXAMEN NIVEL 9"] },
+            { n: "Fase 10: Control de Lazo Cerrado", l: ["Teoría Control", "Error Sistemas", "Control P", "Control I", "Control D", "Tuning PID", "Algoritmo C++", "Sampling Rate", "Saturación", "Ziegler-Nichols", "Filtros Digitales", "Estabilidad", "Feedback Óptico", "Encoders", "Lógica Difusa", "EXAMEN NIVEL 10"] },
+            { n: "Fase 11: Cinemática Móvil", l: ["Tracción Diferencial", "Odometría", "Mapeo Básico", "Evitación Obstáculos", "Seguidor Línea", "PID en Móviles", "Baterías LiPo", "Sistemas BMS", "Chasis y Torque", "Rozamiento", "Navegación", "Encoders Magnéticos", "Cinemática Inversa", "Estabilidad Giro", "Planificación", "EXAMEN NIVEL 11"] },
+            { n: "Fase 12: Brazos Robóticos", l: ["Grados Libertad", "Eslabones", "Parámetros DH", "Matrices Transf.", "Cinemática Directa", "Cinemática Inversa", "Jacobiano", "Planificación Trayect.", "Motores Torque", "Estructura", "Grippers", "Precisión Repet.", "Seguridad Industrial", "Espacio Trabajo", "Singularidades", "EXAMEN NIVEL 12"] },
+            { n: "Fase 13: Visión Artificial", l: ["Cámaras e Interfaces", "Espacios Color", "OpenCV Intro", "Umbralización", "Detección Bordes", "Contornos", "Filtros Imagen", "Seguimiento Color", "Histogramas", "Detección Rostros", "OCR Básico", "Calibración Lente", "Raspberry Pi Cam", "FPS y Optimización", "Deep Learning Intro", "EXAMEN NIVEL 13"] },
+            { n: "Fase 14: IA Embebida", l: ["Conceptos ML", "Redes Neuronales", "Datasets", "Entrenamiento", "Edge AI", "TensorFlow Lite", "Regresión Lineal", "Clasificación", "Toma Decisiones", "Lógica Difusa", "Agentes Intelig.", "Optimización", "Modelos Cuantiz.", "Inferencia", "Hardware IA", "EXAMEN NIVEL 14"] },
+            { n: "Fase 15: Middleware ROS", l: ["Arquitectura ROS", "Nodos y Topics", "Mensajes", "Servicios", "Parámetros", "Launch Files", "Catkin Workspace", "Simulación Gazebo", "Visualización Rviz", "Transformadas TF2", "Modelado URDF", "Acciones", "Bags y Logs", "Multirobot", "Navegación Stack", "EXAMEN NIVEL 15"] },
+            { n: "Fase 16: Linux Embebido", l: ["Terminal Básica", "Sistemas Archivos", "Permisos", "Conexión SSH", "Scripting Bash", "Paquetes Apt", "Tareas Cron", "Compilación C++", "Python para Robótica", "Gestión GPIO", "Redes Linux", "Procesos", "Monitoreo", "Kernel Intro", "Embedded Linux", "EXAMEN NIVEL 16"] },
+            { n: "Fase 17: Gestión Energía", l: ["Química Baterías", "Carga y Descarga", "Balanceo Celdas", "Circuitos PCM/BMS", "Convertidores Buck", "Convertidores Boost", "Reguladores LDO", "Eficiencia Energ.", "Disipación Calor", "Energía Solar", "Modos Bajo Consumo", "Protecciones Galvan.", "Medición Capacidad", "EMI en Potencia", "Diseño Fuentes", "EXAMEN NIVEL 17"] },
+            { n: "Fase 18: Ética y Normativa", l: ["Leyes Asimov", "ISO 10218", "Seguridad Cobots", "Privacidad Datos", "Propiedad Intelect.", "Patentes", "Impacto Ambiental", "Obsolescencia", "Responsab. Social", "Normas Eléctricas", "Certificaciones", "Documentación", "Costos Proyecto", "Marketing Técnico", "Ética Profesional", "EXAMEN NIVEL 18"] },
+            { n: "Fase 19: Proyecto Final", l: ["Definición Problema", "Estado del Arte", "Presupuesto", "Diagrama Gantt", "Diseño Conceptual", "Lista Materiales", "Modelado Final", "Prototipo POC", "Iteración Diseño", "Hardware Final", "Software Final", "Integración", "Manual Usuario", "Pitch Presentación", "Demostración", "ANTEPROYECTO"] },
+            { n: "Fase 20: Carrera Profesional", l: ["Revisión Portafolio", "GitHub y LinkedIn", "Redacción CV", "Entrevistas Técnicas", "Pruebas Código", "Marca Personal", "Networking", "Soft Skills", "Inglés Técnico", "Freelancing", "Gestión Proyectos", "Innovación", "Postgrados", "Emprendimiento", "Ética Laboral", "MAESTRO FINAL"] }
         ];
 
-        let state = { xp: 0, lives: 5, completed: [], user: null };
-        let active = null;
-        let isChecking = false;
+        // --- GESTIÓN DE ESTADO ---
+        let state = {
+            xp: parseInt(localStorage.getItem('rc_master_xp')) || 0,
+            lives: localStorage.getItem('rc_master_lives') !== null ? parseInt(localStorage.getItem('rc_master_lives')) : 5,
+            completed: JSON.parse(localStorage.getItem('rc_master_completed')) || []
+        };
 
-        // --- INICIO ---
-        function init() {
-            renderMap();
+        function saveState() {
+            localStorage.setItem('rc_master_xp', state.xp);
+            localStorage.setItem('rc_master_lives', state.lives);
+            localStorage.setItem('rc_master_completed', JSON.stringify(state.completed));
             updateUI();
         }
 
+        // --- GENERADOR DE PREGUNTAS LÓGICO ---
+        function generateTechnicalQuestion(lessonTitle, phaseIndex) {
+            const themes = [
+                { q: "¿Cuál es el parámetro crítico para asegurar la estabilidad en ", a: "Asegurar el margen de fase.", o: ["Aumentar el voltaje", "Asegurar el margen de fase.", "Eliminar la tierra", "Reducir el cableado"] },
+                { q: "Para implementar correctamente ", a: "Utilizar el protocolo estándar.", o: ["Utilizar el protocolo estándar.", "Ignorar las librerías", "Soldar todo directo", "Subir el baudrate al máximo"] },
+                { q: "En un entorno de alta precisión para ", a: "Reducir el ruido electromagnético.", o: ["Usar cables más largos", "Reducir el ruido electromagnético.", "Aumentar la temperatura", "Quitar los capacitores"] }
+            ];
+            
+            const theme = themes[lessonTitle.length % themes.length];
+            return {
+                q: theme.q + `"${lessonTitle}"?`,
+                o: theme.o,
+                a: theme.o.indexOf(theme.a),
+                e: "El análisis técnico confirma la viabilidad del sistema bajo estas condiciones."
+            };
+        }
+
+        // --- UI Y RENDER ---
         function renderMap() {
             const map = document.getElementById('map-content');
             map.innerHTML = "";
             let globalIdx = 0;
 
-            CURRICULUM.forEach((phase, pIdx) => {
+            RAW_CURRICULUM.forEach((phase, pIdx) => {
                 const head = document.createElement('div');
-                head.className = "w-full text-center mt-12 mb-6";
-                head.innerHTML = `<h3 class="bg-slate-900 text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">${phase.n}</h3>`;
+                head.className = "w-full text-center mt-20 mb-10";
+                head.innerHTML = `
+                    <div class="inline-block px-4 py-1 bg-slate-900 rounded-full mb-2">
+                        <span class="text-[10px] font-mono text-blue-400 font-bold uppercase tracking-widest">MÓDULO ${pIdx + 1}</span>
+                    </div>
+                    <h3 class="text-slate-800 font-black text-xl uppercase tracking-tighter">${phase.n}</h3>
+                `;
                 map.appendChild(head);
 
                 const grid = document.createElement('div');
-                grid.className = "flex flex-col items-center gap-6";
+                grid.className = "flex flex-col items-center gap-8";
 
                 phase.l.forEach((name, lIdx) => {
-                    const id = `f${pIdx}l${lIdx}`;
+                    const id = `p${pIdx}l${lIdx}`;
                     const isDone = state.completed.includes(id);
                     const isNow = state.completed.length === globalIdx;
                     const isLock = state.completed.length < globalIdx;
 
                     const btn = document.createElement('button');
-                    btn.className = `w-14 h-14 rounded-full border-b-4 flex items-center justify-center font-bold text-sm shadow-lg transition-all relative z-10 
+                    btn.className = `w-16 h-16 rounded-full border-b-4 flex items-center justify-center font-bold text-lg shadow-xl transition-all relative z-10 
                         ${isDone ? 'node-completed' : (isNow ? 'node-current' : 'node-locked')}`;
                     
                     btn.innerText = (lIdx + 1);
-                    btn.style.transform = `translateX(${Math.sin(globalIdx * 0.8) * 50}px)`;
+                    btn.style.transform = `translateX(${Math.sin(globalIdx * 0.7) * 70}px)`;
                     
-                    if(!isLock) btn.onclick = () => openLesson(id, name, phase.n);
+                    if(!isLock) btn.onclick = () => openLesson(id, name, phase.n, pIdx);
                     grid.appendChild(btn);
                     globalIdx++;
                 });
                 map.appendChild(grid);
             });
-            setTimeout(drawLines, 200);
+            setTimeout(drawLines, 500);
         }
 
         function drawLines() {
@@ -142,9 +210,9 @@
             canvas.height = document.getElementById('app-container').scrollHeight;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
-            ctx.strokeStyle = "#cbd5e1";
-            ctx.lineWidth = 4;
-            ctx.setLineDash([10, 5]);
+            ctx.strokeStyle = "#94a3b8";
+            ctx.lineWidth = 6;
+            ctx.setLineDash([15, 10]);
 
             const nodes = document.querySelectorAll('#map-content button');
             nodes.forEach((n, i) => {
@@ -156,73 +224,89 @@
             ctx.stroke();
         }
 
-        window.openLesson = (id, title, pName) => {
-            if(state.lives <= 0) return alert("SISTEMA BLOQUEADO: Recarga energía.");
-            active = { id, title, pName, selected: null, q: getTechnicalQuestion(title) };
+        let active = null;
+        let isChecking = false;
+
+        function openLesson(id, title, pName, pIdx) {
+            if(state.lives <= 0) return alert("SISTEMA BLOQUEADO: Recarga energía o reinicia el progreso.");
+            active = { id, title, pName, q: generateTechnicalQuestion(title, pIdx), selected: null };
             isChecking = false;
+
             document.getElementById('lesson-overlay').classList.remove('hidden');
             document.getElementById('lesson-title').innerText = title;
+            document.getElementById('phase-tag').innerText = pName;
             document.getElementById('lesson-q').innerText = active.q.q;
+            document.getElementById('lesson-progress').style.width = "0%";
             
             const opts = document.getElementById('quiz-options');
             opts.innerHTML = "";
-            active.q.o.forEach((t, i) => {
+            active.q.o.forEach((txt, i) => {
                 const b = document.createElement('button');
-                b.className = "p-4 border rounded-xl text-left bg-white font-semibold text-slate-700 hover:bg-slate-50";
-                b.innerText = t;
+                b.className = "p-5 border-2 rounded-2xl text-left bg-white font-bold text-slate-700 hover:border-blue-400 transition-all shadow-sm";
+                b.innerText = txt;
                 b.onclick = () => {
                     if(isChecking) return;
-                    document.querySelectorAll('#quiz-options button').forEach(x => x.classList.remove('ring-2', 'ring-blue-500'));
-                    b.classList.add('ring-2', 'ring-blue-500');
+                    document.querySelectorAll('#quiz-options button').forEach(x => x.classList.remove('border-blue-600', 'bg-blue-50'));
+                    b.classList.add('border-blue-600', 'bg-blue-50');
                     active.selected = i;
                 };
                 opts.appendChild(b);
             });
+            
             document.getElementById('feedback-box').classList.add('hidden');
-            document.getElementById('check-btn').innerText = "ANALIZAR";
-        };
-
-        function getTechnicalQuestion(title) {
-            return {
-                q: `Para la competencia "${title}", ¿cuál es el criterio técnico fundamental para garantizar la integridad y estabilidad del sistema?`,
-                o: ["Filtrado de armónicos y desacoplo", "Optimización de lazo cerrado (PID)", "Análisis de respuesta transitoria", "Cumplimiento de estándares EMI/RFI"],
-                a: Math.floor(Math.random() * 4),
-                e: "Análisis correcto. La integridad del sistema depende de la estabilidad paramétrica."
-            };
+            document.getElementById('check-btn').innerText = "Verificar Análisis";
         }
 
-        window.handleInteraction = () => {
+        function handleInteraction() {
             if(isChecking) { closeLesson(); return; }
             if(active.selected === null) return;
+
             isChecking = true;
-            const correct = active.selected === active.q.a;
+            const isCorrect = active.selected === active.q.a;
             
-            if(correct) {
-                confetti({ particleCount: 50, spread: 60 });
-                if(!state.completed.includes(active.id)) state.completed.push(active.id);
-                state.xp += 100;
-                document.getElementById('feedback-text').innerText = "✓ ANÁLISIS VÁLIDO. " + active.q.e;
-                document.getElementById('feedback-box').className = "mt-6 p-4 rounded-xl border-l-4 bg-green-50 border-green-500 text-green-700";
+            document.querySelectorAll('#quiz-options button').forEach((b, i) => {
+                if(i === active.q.a) b.classList.add('option-correct');
+                else if(i === active.selected) b.classList.add('option-wrong');
+            });
+
+            const feed = document.getElementById('feedback-box');
+            feed.classList.remove('hidden');
+            
+            if(isCorrect) {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
+                if(!state.completed.includes(active.id)) {
+                    state.completed.push(active.id);
+                    state.xp += 100;
+                }
+                feed.className = "mt-8 p-6 rounded-2xl border-l-8 bg-green-50 border-green-500 text-green-800";
+                document.getElementById('feedback-text').innerText = "ANÁLISIS VÁLIDO: " + active.q.e;
+                document.getElementById('lesson-progress').style.width = "100%";
+                document.getElementById('check-btn').innerText = "Continuar";
             } else {
                 state.lives--;
-                document.getElementById('feedback-text').innerText = "✗ ERROR DE CÁLCULO. Se ha perdido integridad de vida.";
-                document.getElementById('feedback-box').className = "mt-6 p-4 rounded-xl border-l-4 bg-red-50 border-red-500 text-red-700";
+                feed.className = "mt-8 p-6 rounded-2xl border-l-8 bg-red-50 border-red-500 text-red-800";
+                document.getElementById('feedback-text').innerText = "ERROR TÉCNICO: Se ha degradado la integridad del sistema.";
+                document.getElementById('check-btn').innerText = "Reintentar";
             }
-            document.getElementById('feedback-box').classList.remove('hidden');
-            document.getElementById('check-btn').innerText = "CONTINUAR";
-            updateUI();
+
+            saveState();
             renderMap();
-        };
-
-        window.closeLesson = () => document.getElementById('lesson-overlay').classList.add('hidden');
-
-        function updateUI() {
-            document.getElementById('stat-xp').innerText = state.xp;
-            document.getElementById('stat-lives').innerText = state.lives;
-            document.getElementById('modal-lives').innerText = state.lives;
         }
 
-        init();
+        function closeLesson() { document.getElementById('lesson-overlay').classList.add('hidden'); }
+        function resetProgress() { if(confirm("¿Seguro que quieres borrar las 320 actividades?")) { localStorage.clear(); location.reload(); } }
+
+        function updateUI() {
+            document.getElementById('stat-xp').innerText = state.xp.toLocaleString();
+            document.getElementById('stat-lives').innerText = state.lives;
+            document.getElementById('modal-lives').innerText = state.lives;
+            
+            const total = 20 * 16;
+            const pct = Math.round((state.completed.length / total) * 100);
+            document.getElementById('progress-pct').innerText = pct + "%";
+        }
+
+        window.onload = () => { renderMap(); updateUI(); };
         window.onresize = drawLines;
     </script>
 </body>
