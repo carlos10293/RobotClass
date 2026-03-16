@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoboLingo Pro - Academia de Robótica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        
+        body { font-family: 'Nunito', sans-serif; background-color: #f7f7f7; user-select: none; }
+        
+        .btn-push { transition: all 0.1s; border-bottom: 5px solid; }
+        .btn-push:active { transform: translateY(4px); border-bottom-width: 0px; margin-bottom: 5px; }
+
+        .hidden { display: none; }
+        
+        #path-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes pulse-gold {
+            0% { box-shadow: 0 0 0 0 rgba(255, 200, 0, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 200, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 200, 0, 0); }
+        }
+        .current-node { animation: pulse-gold 2s infinite; }
+
+        .correct-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="max-w-md mx-auto bg-white min-h-screen">
+
+    <!-- CABECERA -->
+    <header class="sticky top-0 bg-white border-b-2 border-gray-200 p-4 z-50 shadow-sm flex justify-between items-center">
+        <div class="flex gap-4">
+            <div class="flex items-center gap-1 text-orange-500 font-black" title="Racha"><i class="fas fa-fire"></i> <span id="stat-streak">0</span></div>
+            <div class="flex items-center gap-1 text-blue-500 font-black" title="XP"><i class="fas fa-bolt"></i> <span id="stat-xp">0</span></div>
+            <div class="flex items-center gap-1 text-red-500 font-black" title="Vidas"><i class="fas fa-heart"></i> <span id="stat-hearts">5</span></div>
+        </div>
+        <div class="text-gray-400 font-black flex items-center gap-1">
+            <i class="fas fa-nut"></i> <span id="stat-coins">100</span>
+        </div>
+    </header>
+
+    <main id="view-container" class="pb-24 pt-4">
+        
+        <!-- VISTA: MAPA -->
+        <section id="view-home" class="view px-4">
+            <div id="map-container" class="relative flex flex-col items-center">
+                <svg id="path-svg"></svg>
+                <div id="learning-path" class="w-full flex flex-col items-center space-y-12 relative pb-20 text-center">
+                    <!-- Mapa dinámico generado por JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA: LABORATORIO -->
+        <section id="view-shop" class="view hidden px-6 text-center">
+            <h2 class="text-3xl font-black mb-6 mt-4">Laboratorio</h2>
+            <div class="bg-blue-50 p-6 rounded-3xl border-2 border-blue-100 flex justify-between items-center mb-4 text-left">
+                <div>
+                    <h4 class="font-black text-blue-800 text-lg">Caja de Corazones</h4>
+                    <p class="text-sm text-blue-600">Restaura todas tus vidas</p>
+                </div>
+                <button onclick="buyItem('hearts')" class="bg-white px-4 py-2 rounded-xl font-black text-blue-500 shadow-sm border-2 border-blue-200 btn-push">50 <i class="fas fa-nut"></i></button>
+            </div>
+        </section>
+
+        <!-- VISTA: PERFIL -->
+        <section id="view-profile" class="view hidden px-6">
+            <h2 class="text-3xl font-black mb-6 mt-4">Mis Logros</h2>
+            <div id="badges-grid" class="grid grid-cols-3 gap-4 text-center">
+                <!-- Medallas -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- NAVEGACIÓN -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-gray-200 flex justify-around py-4 z-40">
+        <button onclick="switchView('home')" class="nav-btn text-green-500"><i class="fas fa-home text-2xl"></i></button>
+        <button onclick="switchView('shop')" class="nav-btn text-gray-300"><i class="fas fa-flask text-2xl"></i></button>
+        <button onclick="switchView('profile')" class="nav-btn text-gray-300"><i class="fas fa-award text-2xl"></i></button>
+    </nav>
+
+    <!-- OVERLAY DE LECCIÓN -->
+    <div id="lesson-overlay" class="fixed inset-0 bg-white z-[100] hidden flex flex-col overflow-y-auto">
+        <div class="p-6 pb-2 flex items-center gap-4">
+            <button onclick="closeLesson()" class="text-3xl text-gray-300">&times;</button>
+            <div class="flex-1 bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div id="lesson-progress" class="bg-green-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+        </div>
+        
+        <div id="lesson-content" class="flex-1 flex flex-col px-6 py-4"></div>
+
+        <div id="feedback-panel" class="hidden fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-white border-t-4 z-[110] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+            <div id="feedback-header" class="flex items-center gap-3 mb-2">
+                <i id="feedback-icon" class="fas fa-circle-check text-2xl"></i>
+                <h3 id="feedback-title" class="text-xl font-black italic"></h3>
+            </div>
+            <p id="feedback-explanation" class="text-gray-600 text-sm mb-6 leading-relaxed"></p>
+            <button id="next-btn" class="w-full py-4 rounded-2xl font-black text-white shadow-lg btn-push uppercase tracking-widest"></button>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const SYLLABUS = [
+            { id: 1, name: "Fundamentos", color: "#58cc02", lessons: [
+                { id: 101, t: "¿Qué es un robot?", d: 1, q: "Técnicamente, un robot se diferencia de una máquina automatizada porque:", o: ["Posee un bucle de control (Sentir-Procesar-Actuar)", "Ejecuta tareas de forma puramente mecánica", "Su estructura es siempre antropomórfica"], a: 0, explanation: "El bucle de control permite al robot interactuar dinámicamente con su entorno, ajustando sus acciones según la lectura de sus sensores." },
+                { id: 102, t: "Componentes", d: 1, q: "¿Cuál es el componente responsable del procesamiento de señales?", o: ["Microcontrolador", "Chasis", "Actuador"], a: 0, explanation: "El microcontrolador actúa como el cerebro, interpretando datos de entrada para generar comandos de salida." },
+                { id: 103, t: "Actuadores", d: 2, q: "Un motor es un tipo de actuador que convierte:", o: ["Energía eléctrica en mecánica", "Señales analógicas en digitales", "Calor en electricidad"], a: 0, explanation: "Los actuadores son los encargados de realizar el trabajo físico en el mundo real, transformando la energía eléctrica en movimiento." },
+                { id: 104, t: "Sensores", d: 1, q: "La función principal de un transductor (sensor) es:", o: ["Convertir magnitudes físicas en señales eléctricas", "Amplificar el voltaje de la batería", "Producir sonido de aviso"], a: 0, explanation: "Los sensores permiten que el sistema digital 'entienda' el mundo físico traduciendo variables como luz o distancia en voltaje." },
+                { id: 105, t: "Seguridad", d: 1, q: "Antes de alimentar un prototipo con motores, debemos:", o: ["Verificar la continuidad y polaridad", "Conectar todos los cables al azar", "Humedecer las manos para conducir mejor"], a: 0, explanation: "Verificar la polaridad previene la inversión de corriente que puede destruir componentes semiconductores como el microcontrolador." },
+                { id: 106, t: "Lógica básica", d: 2, q: "¿Qué estructura de control es necesaria para un bucle infinito de monitoreo?", o: ["While(true) o Loop()", "Condicional If simple", "Declaración de variable"], a: 0, explanation: "En robótica embebida, el programa principal suele ser un bucle infinito que refresca constantemente el estado de los sensores." },
+                { id: 107, t: "Diseño Inicial", d: 2, q: "En la fase de diseño, ¿cuál es el primer paso profesional?", o: ["Definir los requerimientos funcionales", "Comprar los materiales más caros", "Pintar la carcasa del robot"], a: 0, explanation: "Definir qué debe hacer el robot determina qué sensores, motores y batería serán necesarios para cumplir la misión." },
+                { id: 108, t: "Historia", d: 1, q: "¿En qué obra se utilizó por primera vez el término 'Robot'?", o: ["R.U.R. de Karel Čapek", "Leyes de la Robótica de Asimov", "Diseños de Da Vinci"], a: 0, explanation: "Proviene de la palabra checa 'robota' (trabajo forzado), introducida en la obra de teatro R.U.R. en 1920." }
+            ]},
+            { id: 2, name: "Electrónica Básica", color: "#1cb0f6", lessons: [
+                { id: 201, t: "Voltaje", d: 2, q: "El voltaje se define técnicamente como:", o: ["Diferencia de potencial eléctrico", "Flujo de electrones por segundo", "Oposición al paso de corriente"], a: 0, explanation: "Es la 'presión' que empuja a los electrones a través del circuito. Sin diferencia de potencial, no hay movimiento de carga." },
+                { id: 202, t: "Corriente", d: 2, q: "La unidad de medida para la intensidad de corriente es:", o: ["Amperios (A)", "Voltios (V)", "Ohmios (Ω)"], a: 0, explanation: "Un Amperio representa el flujo de un culombio de carga eléctrica por segundo a través de una sección del conductor." },
+                { id: 203, t: "Ley de Ohm", d: 3, q: "Si V=12V y R=2Ω, ¿cuál es la corriente (I)?", o: ["6 Amperios", "24 Amperios", "10 Amperios"], a: 0, explanation: "I = V / R. Aplicar esta ley es vital para no sobrecargar los pines de un microcontrolador." },
+                { id: 204, t: "Polaridad LED", d: 2, q: "¿Qué sucede si se conecta un diodo LED en polarización inversa?", o: ["No conduce corriente ni enciende", "Cambia su color automáticamente", "Genera energía para la batería"], a: 0, explanation: "Un diodo solo permite el flujo de corriente en un sentido (ánodo a cátodo). En inversa, actúa como un circuito abierto." },
+                { id: 205, t: "Configuración Paralelo", d: 3, q: "En un circuito en paralelo, el voltaje en cada rama es:", o: ["El mismo que la fuente", "Dividido proporcionalmente", "Siempre cero"], a: 0, explanation: "Esta configuración permite que si un componente falla, los demás sigan recibiendo el mismo voltaje operativo." },
+                { id: 206, t: "Motores DC", d: 2, q: "Un motor de corriente continua funciona bajo el principio de:", o: ["Electromagnetismo", "Inducción térmica", "Presión hidráulica"], a: 0, explanation: "La corriente que pasa por las bobinas crea un campo magnético que interactúa con imanes para generar torque." },
+                { id: 207, t: "Multímetro", d: 3, q: "Para medir corriente (Amperaje), el multímetro debe colocarse:", o: ["En serie con el componente", "En paralelo con la fuente", "Cerca del cable sin tocarlo"], a: 0, explanation: "La corriente debe fluir a través del multímetro para ser contada, por lo que se debe 'abrir' el circuito e insertarlo en serie." },
+                { id: 208, t: "Protección", d: 3, q: "¿Por qué usamos una resistencia 'Pull-up' en un botón?", o: ["Para asegurar un estado lógico definido", "Para que el botón brille", "Para aumentar la velocidad del CPU"], a: 0, explanation: "Evita que el pin del microcontrolador quede 'flotando' y detecte ruido eléctrico como si fueran pulsaciones." }
+            ]},
+            { id: 3, name: "Programación Embebida", color: "#a855f7", lessons: [
+                { id: 301, t: "Variables", d: 1, q: "¿Para qué sirve declarar una variable en el código?", o: ["Almacenar datos en memoria", "Mover un motor físicamente", "Soldar cables"], a: 0, explanation: "Las variables reservan un espacio en la RAM para guardar información que el robot usará más tarde, como la distancia medida." },
+                { id: 302, t: "Booleano", d: 2, q: "Un tipo de dato booleano es útil para:", o: ["Estados binarios (Verdadero/Falso)", "Guardar números decimales", "Almacenar párrafos de texto"], a: 0, explanation: "Es ideal para sensores digitales que solo tienen dos estados: detectado (1) o no detectado (0)." },
+                { id: 303, t: "Condicionales", d: 3, q: "La sentencia 'If' nos permite implementar:", o: ["Toma de decisiones lógica", "Repetición de código", "Declaración de puertos"], a: 0, explanation: "Es el corazón de la inteligencia robótica: 'Si (Obstáculo < 10cm) entonces (Girar)'." },
+                { id: 304, t: "Bucles For", d: 3, q: "Un bucle 'For' es preferible cuando:", o: ["Sabemos cuántas veces repetir la acción", "El robot debe dormir", "El código tiene un error"], a: 0, explanation: "Permite iterar un número exacto de veces, por ejemplo, para hacer parpadear un LED exactamente 5 veces." },
+                { id: 305, t: "Funciones", d: 4, q: "¿Cuál es el beneficio de modularizar el código con funciones?", o: ["Reutilización y orden del código", "Hacer que el robot pese menos", "Aumentar el voltaje de salida"], a: 0, explanation: "Permite escribir una vez la lógica de 'avanzar' y llamarla desde cualquier parte del programa, evitando redundancia." },
+                { id: 306, t: "Algoritmo", d: 2, q: "Un algoritmo en robótica se define como:", o: ["Una secuencia lógica de pasos", "Un tipo de batería recargable", "El nombre del microprocesador"], a: 0, explanation: "Es la 'receta' lógica que sigue el robot para resolver un problema específico, paso a paso." },
+                { id: 307, t: "Debug", d: 3, q: "El proceso de 'debugging' consiste en:", o: ["Localizar y corregir errores en el código", "Pintar el robot de otro color", "Aumentar la velocidad del motor"], a: 0, explanation: "Es una habilidad crítica para encontrar fallos lógicos o sintácticos que impiden el funcionamiento correcto." },
+                { id: 308, t: "Mini Proy: Blink", d: 3, q: "Para que un LED parpadee, necesitamos usar:", o: ["Escritura digital y retardos (delays)", "Solo lectura analógica", "Baterías de alto voltaje"], a: 0, explanation: "Se debe encender el pin, esperar un tiempo, apagar el pin y volver a esperar para que el ojo humano perciba el parpadeo." }
+            ]},
+            { id: 4, name: "Controladores", color: "#eab308", lessons: [
+                { id: 401, t: "Cerebro Robótico", d: 2, q: "El Arduino Uno se basa en el microcontrolador:", o: ["ATmega328P", "Intel Core i7", "Raspberry Pi"], a: 0, explanation: "Es un chip de 8 bits muy popular debido a su balance entre potencia, consumo y facilidad de programación." },
+                { id: 402, t: "Señal PWM", d: 4, q: "¿Qué permite hacer la Modulación por Ancho de Pulso (PWM)?", o: ["Simular salidas analógicas desde pines digitales", "Aumentar la capacidad de la batería", "Medir la temperatura del aire"], a: 0, explanation: "Al variar el tiempo que el pin está en ALTO vs BAJO, podemos controlar la velocidad de motores o el brillo de LEDs." },
+                { id: 403, t: "Setup vs Loop", d: 2, q: "La función Setup() en Arduino se usa para:", o: ["Configurar pines y periféricos una vez", "Ejecutar la lógica principal siempre", "Apagar el robot"], a: 0, explanation: "Aquí definimos si un pin será entrada (sensor) o salida (motor) antes de empezar el ciclo principal." },
+                { id: 404, t: "Pines Analógicos", d: 3, q: "¿Qué hace un convertidor ADC interno?", o: ["Convierte voltajes en números digitales", "Convierte electricidad en luz", "Limpia el ruido del motor"], a: 0, explanation: "Traduce valores continuos (ej. 2.5V) a valores numéricos (ej. 512) que el procesador puede manipular." },
+                { id: 405, t: "Sensor LDR", d: 3, q: "Un sensor de luz LDR varía su resistencia según:", o: ["La intensidad lumínica", "La velocidad del robot", "El nivel de humedad"], a: 0, explanation: "Es una fotorresistencia. A más luz, menor resistencia, lo que permite crear robots que buscan o huyen de la luz." },
+                { id: 406, t: "Monitor Serial", d: 2, q: "Es una herramienta fundamental para:", o: ["Visualizar datos y depurar en tiempo real", "Imprimir etiquetas para cables", "Cargar la batería por USB"], a: 0, explanation: "Permite 'ver' qué está pensando el robot enviando mensajes de texto desde el microcontrolador a la computadora." },
+                { id: 407, t: "Protocolo I2C", d: 5, q: "I2C es útil para comunicar periféricos usando:", o: ["Solo 2 cables de datos", "Cables de fibra óptica", "Conexión inalámbrica satelital"], a: 0, explanation: "Permite conectar múltiples sensores complejos (como pantallas OLED o acelerómetros) usando solo dos pines (SDA y SCL)." },
+                { id: 408, t: "Mini Proy: Luz Auto", d: 4, q: "Para crear una luz nocturna automática, comparamos la lectura analógica con:", o: ["Un valor de umbral (threshold)", "El nombre de la variable", "La velocidad del puerto serial"], a: 0, explanation: "Si el valor del sensor es menor al umbral (está oscuro), el programa ordena encender el LED." }
+            ]}
+        ];
+
+        // Estado y lógica de la aplicación
+        let state = {
+            hearts: 5, xp: 0, coins: 100, streak: 0,
+            completed: [],
+            badges: []
+        };
+
+        function init() {
+            const saved = localStorage.getItem('robolingo_pro_v2');
+            if (saved) state = JSON.parse(saved);
+            renderMap();
+            renderBadges();
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('stat-hearts').innerText = state.hearts;
+            document.getElementById('stat-xp').innerText = state.xp;
+            document.getElementById('stat-coins').innerText = state.coins;
+            document.getElementById('stat-streak').innerText = state.streak;
+            localStorage.setItem('robolingo_pro_v2', JSON.stringify(state));
+        }
+
+        function renderMap() {
+            const path = document.getElementById('learning-path');
+            path.innerHTML = '';
+            const svg = document.getElementById('path-svg');
+            svg.innerHTML = '';
+            
+            let allNodes = [];
+            let lessonCounter = 0;
+
+            SYLLABUS.forEach(lvl => {
+                const header = document.createElement('div');
+                header.className = "w-full py-6 rounded-3xl text-white text-center font-black mt-8 shadow-md border-b-4 border-black/20";
+                header.style.backgroundColor = lvl.color;
+                header.innerHTML = `<span class='opacity-70 text-[10px] block mb-1 uppercase tracking-widest'>Módulo ${lvl.id}</span>${lvl.name}`;
+                path.appendChild(header);
+
+                lvl.lessons.forEach((les, i) => {
+                    const isDone = state.completed.includes(les.id);
+                    const isUnlocked = lessonCounter <= state.completed.length;
+                    
+                    const node = document.createElement('button');
+                    const zig = (i % 2 === 0) ? '40px' : '-40px';
+                    node.className = `w-20 h-20 rounded-full flex items-center justify-center btn-push z-10 relative mx-auto mb-4 
+                        ${isDone ? 'bg-yellow-400 border-yellow-600' : isUnlocked ? 'bg-green-500 border-green-700' : 'bg-gray-200 border-gray-300 cursor-not-allowed opacity-50'}`;
+                    node.style.transform = `translateX(${zig})`;
+                    
+                    if (isUnlocked && !isDone) node.classList.add('current-node');
+                    
+                    node.innerHTML = isDone ? '<i class="fas fa-check text-white text-2xl"></i>' : isUnlocked ? `<span class="text-white font-black text-xl">${les.d}</span>` : '<i class="fas fa-lock text-gray-400"></i>';
+                    
+                    if (isUnlocked) node.onclick = () => startLesson(les);
+                    
+                    const label = document.createElement('div');
+                    label.className = "absolute -bottom-8 text-[10px] font-black text-gray-400 uppercase tracking-tighter whitespace-nowrap left-1/2 -translate-x-1/2";
+                    label.innerText = les.t;
+                    node.appendChild(label);
+                    
+                    path.appendChild(node);
+                    allNodes.push(node);
+                    lessonCounter++;
+                });
+            });
+
+            // Conexión visual de nodos con SVG
+            setTimeout(() => {
+                const containerRect = path.getBoundingClientRect();
+                for (let i = 0; i < allNodes.length - 1; i++) {
+                    const start = allNodes[i].getBoundingClientRect();
+                    const end = allNodes[i+1].getBoundingClientRect();
+                    
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute("x1", (start.left + start.width/2) - containerRect.left);
+                    line.setAttribute("y1", (start.top + start.height/2) - containerRect.top);
+                    line.setAttribute("x2", (end.left + end.width/2) - containerRect.left);
+                    line.setAttribute("y2", (end.top + end.height/2) - containerRect.top);
+                    line.setAttribute("stroke", i < state.completed.length ? "#fbbf24" : "#e5e7eb");
+                    line.setAttribute("stroke-width", "8");
+                    line.setAttribute("stroke-linecap", "round");
+                    svg.appendChild(line);
+                }
+            }, 100);
+        }
+
+        let activeLesson = null;
+        function startLesson(les) {
+            if (state.hearts <= 0) return alert("Sin vidas. Recupera energía en el laboratorio.");
+            activeLesson = les;
+            document.getElementById('lesson-overlay').classList.remove('hidden');
+            document.getElementById('lesson-progress').style.width = '10%';
+            
+            const content = document.getElementById('lesson-content');
+            content.innerHTML = `
+                <div class="flex-1 flex flex-col justify-center animate-pop">
+                    <div class="mb-4 flex justify-between items-center">
+                        <span class="text-xs font-bold text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-widest">
+                            <i class="fas fa-microchip mr-1"></i> Desafío Técnico
+                        </span>
+                        <span class="text-xs font-bold text-gray-400">Nivel Dificultad: ${les.d}/5</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-800 mb-8 leading-tight">${les.q}</h2>
+                    <div class="space-y-4">
+                        ${les.o.map((opt, i) => `
+                            <button onclick="checkAnswer(${i}, this)" class="option-btn w-full p-5 rounded-2xl border-2 border-gray-200 font-bold text-left flex items-center gap-4 hover:border-blue-400 hover:bg-blue-50 transition-all active:scale-[0.98]">
+                                <span class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 text-sm font-black">${String.fromCharCode(65+i)}</span>
+                                <span class="flex-1 text-gray-700">${opt}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('feedback-panel').classList.add('hidden');
+        }
+
+        function checkAnswer(idx, el) {
+            const isCorrect = idx === activeLesson.a;
+            const panel = document.getElementById('feedback-panel');
+            const title = document.getElementById('feedback-title');
+            const icon = document.getElementById('feedback-icon');
+            const explanation = document.getElementById('feedback-explanation');
+            const btn = document.getElementById('next-btn');
+            
+            document.querySelectorAll('.option-btn').forEach(b => {
+                b.onclick = null;
+                b.style.opacity = "0.5";
+            });
+            el.style.opacity = "1";
+            panel.classList.remove('hidden');
+
+            if (isCorrect) {
+                playTone(600, 'sine', 0.1); playTone(900, 'sine', 0.2);
+                el.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                panel.className = "fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-green-50 border-t-4 border-green-500 z-[110] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]";
+                title.innerText = "¡Correcto!";
+                title.className = "text-xl font-black text-green-700";
+                icon.className = "fas fa-circle-check text-2xl text-green-500";
+                explanation.innerHTML = `<strong class="block mb-1 text-green-800">Concepto clave:</strong> ${activeLesson.explanation}`;
+                btn.className = "w-full py-4 rounded-2xl font-black text-white bg-green-500 shadow-[0_5px_0_0_#16a34a] btn-push uppercase";
+                btn.innerText = "Siguiente lección";
+                btn.onclick = finishLesson;
+                document.getElementById('lesson-progress').style.width = '100%';
+            } else {
+                playTone(150, 'square', 0.3);
+                el.classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+                panel.className = "fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-red-50 border-t-4 border-red-500 z-[110] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]";
+                title.innerText = "Error Técnico";
+                title.className = "text-xl font-black text-red-700";
+                icon.className = "fas fa-circle-xmark text-2xl text-red-500";
+                explanation.innerText = "Esa opción causaría fallos en el sistema. Analiza el concepto de ingeniería y vuelve a intentarlo.";
+                btn.className = "w-full py-4 rounded-2xl font-black text-white bg-red-500 shadow-[0_5px_0_0_#dc2626] btn-push uppercase";
+                btn.innerText = "Reintentar";
+                btn.onclick = () => {
+                    state.hearts--;
+                    updateUI();
+                    if (state.hearts <= 0) closeLesson();
+                    else startLesson(activeLesson);
+                };
+            }
+        }
+
+        function finishLesson() {
+            if (!state.completed.includes(activeLesson.id)) {
+                state.completed.push(activeLesson.id);
+                state.xp += (activeLesson.d * 25);
+                state.coins += (activeLesson.d * 15);
+            }
+            state.streak++;
+            checkBadges();
+            closeLesson();
+            renderMap();
+            updateUI();
+        }
+
+        function closeLesson() {
+            document.getElementById('lesson-overlay').classList.add('hidden');
+        }
+
+        function checkBadges() {
+            if (state.streak >= 5 && !state.badges.includes('fuego')) state.badges.push('fuego');
+            if (state.completed.length >= 8 && !state.badges.includes('grad')) state.badges.push('grad');
+            if (state.xp >= 1000 && !state.badges.includes('expert')) state.badges.push('expert');
+            renderBadges();
+        }
+
+        function renderBadges() {
+            const grid = document.getElementById('badges-grid');
+            grid.innerHTML = '';
+            const allBadges = [
+                { id: 'fuego', icon: 'fa-fire', color: 'text-orange-500', label: 'Racha 5' },
+                { id: 'grad', icon: 'fa-user-graduate', color: 'text-blue-500', label: 'Técnico Jr' },
+                { id: 'expert', icon: 'fa-microchip', color: 'text-indigo-600', label: 'Ingeniero' }
+            ];
+            allBadges.forEach(b => {
+                const hasIt = state.badges.includes(b.id);
+                grid.innerHTML += `
+                    <div class="p-4 ${hasIt ? 'opacity-100' : 'opacity-20 grayscale'}">
+                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2 text-2xl ${b.color}">
+                            <i class="fas ${b.icon}"></i>
+                        </div>
+                        <span class="text-[10px] font-black uppercase text-gray-500 tracking-tighter">${b.label}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function buyItem(type) {
+            if (type === 'hearts' && state.coins >= 50) {
+                state.coins -= 50;
+                state.hearts = 5;
+                updateUI();
+                alert("¡Corazones restaurados con éxito!");
+            }
+        }
+
+        function switchView(view) {
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.getElementById('view-' + view).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.replace('text-green-500', 'text-gray-300'));
+            event.currentTarget.classList.replace('text-gray-300', 'text-green-500');
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
