@@ -3,28 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoboClass - Plan Maestro Completo</title>
+    <title>RoboClass - 320 Actividades y Certificaciones</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=JetBrains+Mono&display=swap');
         
         body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f1f5f9; 
+            font-family: 'Nunito', sans-serif; 
+            background-color: #f8fafc; 
             user-select: none; 
             overflow-x: hidden;
         }
         
-        .node-completed { background: #10b981; border-color: #059669; color: white; }
-        .node-current { background: #3b82f6; border-color: #2563eb; color: white; animation: pulse 2s infinite; }
-        .node-locked { background: #cbd5e1; border-color: #94a3b8; color: #64748b; }
+        .btn-push { transition: all 0.1s; border-bottom: 4px solid; }
+        .btn-push:active { transform: translateY(4px); border-bottom-width: 0px; margin-bottom: 4px; }
+
+        .node-completed { background: #58cc02; border-color: #46a302; color: white; }
+        .node-current { background: #1cb0f6; border-color: #1899d6; color: white; animation: pulse 2s infinite; }
+        .node-locked { background: #e5e7eb; border-color: #d1d5db; color: #afafaf; }
+        .node-cert { border-color: #ffc107; background: #fff3cd; color: #856404; }
 
         @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 176, 246, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(28, 176, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 176, 246, 0); }
         }
 
         #path-canvas {
@@ -36,13 +40,16 @@
             opacity: 0.2;
         }
 
-        .option-correct { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #166534 !important; }
-        .option-wrong { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
-        
-        .btn-push { transition: all 0.1s; border-bottom: 4px solid; }
-        .btn-push:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .option-btn {
+            transition: all 0.2s;
+            border: 2px solid #e5e7eb;
+            border-bottom-width: 4px;
+        }
+        .option-btn:hover:not(:disabled) { background-color: #f3f4f6; }
+        .option-selected { border-color: #84d8ff; background-color: #ddf4ff; color: #1899d6; }
+        .option-correct { border-color: #58cc02; background-color: #d7ffb8; color: #46a302; }
+        .option-wrong { border-color: #ea2b2b; background-color: #ffdfe0; color: #ea2b2b; }
 
-        /* Scrollbar personalizada */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -50,264 +57,289 @@
 </head>
 <body class="bg-slate-50">
 
-    <!-- Header Fijo -->
-    <nav class="fixed top-0 left-0 w-full bg-slate-900 text-white z-50 h-16 flex items-center justify-between px-6 shadow-xl">
-        <div class="flex items-center gap-4">
-            <span class="text-xl font-black text-blue-400">ROBOCLASS <span class="text-white text-[10px] font-mono border border-white/20 px-1 rounded uppercase">Master</span></span>
+    <nav class="fixed top-0 left-0 w-full bg-white border-b-2 border-slate-200 z-50 h-16 flex items-center justify-between px-6">
+        <div class="flex items-center gap-2">
+            <span class="text-2xl font-black text-blue-500 tracking-tighter">ROBOCLASS</span>
+            <span class="bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Master 320</span>
         </div>
-        <div class="flex gap-6 font-mono text-sm items-center">
-            <div class="hidden md:block text-slate-400 text-[10px]">PROGRESO TOTAL: <span id="progress-pct">0%</span></div>
-            <div class="text-rose-400 flex items-center gap-2"><i class="fas fa-heart"></i> <span id="stat-lives">5</span></div>
-            <div class="text-blue-400 flex items-center gap-2"><i class="fas fa-bolt"></i> <span id="stat-xp">0</span> XP</div>
-            <button onclick="resetProgress()" class="text-slate-500 hover:text-white text-xs border border-slate-700 px-2 py-1 rounded">RESET</button>
+        
+        <div class="flex items-center gap-6 font-bold">
+            <div class="hidden md:flex items-center gap-2 text-orange-500">
+                <i class="fas fa-fire"></i> <span id="stat-xp">0</span> XP
+            </div>
+            <div class="flex items-center gap-2 text-rose-500">
+                <i class="fas fa-heart"></i> <span id="stat-lives">5</span>
+            </div>
+            <button onclick="confirmReset()" class="text-slate-400 hover:text-rose-500 transition-colors">
+                <i class="fas fa-redo-alt"></i>
+            </button>
         </div>
     </nav>
 
-    <!-- Mapa de Lecciones -->
+    <div class="fixed top-16 left-0 w-full bg-white h-1.5 z-40">
+        <div id="master-progress" class="h-full bg-green-500 transition-all duration-1000" style="width: 0%"></div>
+    </div>
+
     <main id="app-container" class="relative pt-24 pb-40 flex flex-col items-center min-h-screen">
         <canvas id="path-canvas"></canvas>
-        <div id="map-content" class="w-full max-w-2xl flex flex-col items-center gap-8 relative px-4">
-            <!-- Cargando 320 actividades... -->
-        </div>
+        <div id="map-content" class="w-full max-w-xl flex flex-col items-center gap-12 relative px-4"></div>
     </main>
 
-    <!-- Modal de Lección -->
+    <!-- Quiz Overlay -->
     <div id="lesson-overlay" class="fixed inset-0 bg-white z-[100] hidden flex flex-col">
-        <div class="h-16 border-b flex items-center justify-between px-6">
-            <button onclick="closeLesson()" class="text-slate-500 font-bold flex items-center gap-2 hover:text-slate-800"><i class="fas fa-arrow-left"></i> VOLVER</button>
-            <div class="h-2 flex-1 mx-8 bg-slate-100 rounded-full overflow-hidden">
-                <div id="lesson-progress" class="h-full bg-blue-500 w-0 transition-all duration-500"></div>
+        <div class="h-16 border-b-2 flex items-center justify-between px-6">
+            <button onclick="closeLesson()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <div class="flex-1 mx-8 h-4 bg-slate-100 rounded-full overflow-hidden">
+                <div id="lesson-bar" class="h-full bg-green-500 w-0 transition-all duration-500"></div>
             </div>
-            <div class="font-bold text-rose-500"><i class="fas fa-heart"></i> <span id="modal-lives">5</span></div>
-        </div>
-        
-        <div class="flex-1 p-6 md:p-12 overflow-y-auto flex flex-col items-center">
-            <div class="max-w-2xl w-full">
-                <div id="phase-tag" class="text-blue-600 font-bold text-xs uppercase tracking-widest mb-2">FASE</div>
-                <h2 id="lesson-title" class="text-3xl font-black mb-8 text-slate-900 leading-tight"></h2>
-                
-                <div class="bg-slate-50 p-8 rounded-3xl mb-8 border border-slate-200 shadow-sm">
-                    <p id="lesson-q" class="text-xl font-medium text-slate-800 leading-relaxed"></p>
-                </div>
-                
-                <div id="quiz-options" class="grid gap-4"></div>
-                
-                <div id="feedback-box" class="hidden mt-8 p-6 rounded-2xl border-l-8 transform transition-all">
-                    <p id="feedback-text" class="font-bold"></p>
-                </div>
+            <div class="flex items-center gap-2 text-rose-500 font-bold">
+                <i class="fas fa-heart"></i> <span id="modal-lives">5</span>
             </div>
         </div>
 
-        <div class="p-8 border-t bg-white flex justify-center">
-            <button id="check-btn" onclick="handleInteraction()" class="btn-push w-full max-w-md py-5 bg-blue-600 text-white rounded-2xl font-black text-lg border-blue-800 shadow-xl uppercase tracking-widest">
-                Verificar Análisis
-            </button>
+        <div class="flex-1 overflow-y-auto p-6 md:p-12">
+            <div class="max-w-2xl mx-auto">
+                <div id="badge-exam" class="hidden mb-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase tracking-widest">
+                    <i class="fas fa-graduation-cap"></i> Examen de Certificación
+                </div>
+                <h4 id="phase-label" class="text-blue-500 font-black uppercase text-sm tracking-widest mb-2"></h4>
+                <h2 id="lesson-title" class="text-3xl font-black text-slate-800 mb-8 leading-tight"></h2>
+                
+                <div class="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-8 shadow-sm">
+                    <p id="lesson-question" class="text-xl font-bold text-slate-700 leading-relaxed"></p>
+                </div>
+
+                <div id="options-grid" class="grid gap-4"></div>
+            </div>
+        </div>
+
+        <div id="footer-feedback" class="p-8 border-t-2 bg-white transition-all duration-300">
+            <div class="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                <div id="feedback-text" class="hidden flex items-center gap-4 flex-1">
+                    <div id="feedback-icon" class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl"></div>
+                    <div>
+                        <p id="feedback-status" class="font-black text-xl"></p>
+                        <p id="feedback-msg" class="text-slate-600 font-bold text-sm md:text-base"></p>
+                    </div>
+                </div>
+                <button id="action-btn" onclick="checkAnswer()" class="btn-push w-full md:w-48 py-4 bg-blue-500 border-blue-700 text-white rounded-2xl font-black uppercase tracking-widest">
+                    Comprobar
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- BASE DE DATOS COMPLETA (20 FASES x 16 ACTIVIDADES = 320) ---
-        const RAW_CURRICULUM = [
-            { n: "Fase 1: Fundamentos de Electrónica", l: ["Flujo electrones", "Ley Ohm", "Multímetro", "Circuitos Serie", "Circuitos Paralelo", "Resistencias", "Condensadores", "Diodos", "Transistores", "Protoboard", "Caída Tensión", "CA vs CC", "Seguridad", "Soldadura", "Esquemas", "EXAMEN NIVEL 1"] },
-            { n: "Fase 2: Arquitectura Arduino", l: ["Ecosistema", "Anatomía Placa", "Instalación IDE", "Setup y Loop", "Digital Write", "Digital Read", "Analog Read", "PWM Control", "Monitor Serial", "Variables", "Condicionales", "Bucles FOR", "Funciones", "Librerías", "Gestión Memoria", "EXAMEN NIVEL 2"] },
-            { n: "Fase 3: Programación C++", l: ["Sintaxis Básica", "Tipos Datos", "Operadores", "Punteros", "Arreglos", "Estructuras", "Clases y Objetos", "Herencia", "Polimorfismo", "Manejo Errores", "Bibliotecas Estándar", "Compilación", "Depuración", "Bitwise Ops", "Sistemas Numéricos", "EXAMEN NIVEL 3"] },
-            { n: "Fase 4: Sensores Avanzados", l: ["Infrarrojos", "Ultrasonidos", "Fotoresistencias", "DHT11/22", "Sensor Lluvia", "Giroscopio", "Acelerómetro", "Magnetómetro", "Presión", "Gas y CO2", "RFID", "Teclado Matricial", "LCD I2C", "OLED Display", "Interrupciones", "EXAMEN NIVEL 4"] },
-            { n: "Fase 5: Actuadores y Motores", l: ["Servos", "Motores DC", "Puente H L298N", "Control Velocidad", "Motores Paso a Paso", "Drivers A4988", "Relés", "Solenoides", "Buzzer Pasivo", "Altavoces", "Motores Brushless", "ESC", "Pneumática Básica", "Hidráulica Básica", "Consumo Corriente", "EXAMEN NIVEL 5"] },
-            { n: "Fase 6: Diseño de PCBs", l: ["Introducción EDA", "Captura Esquema", "Footprints", "Ruteado Manual", "Planos Tierra", "Vías y Capas", "Reglas Diseño", "Librerías Custom", "Archivos Gerber", "Componentes SMD", "Soldadura SMD", "Stencil y Pasta", "Inspección Visual", "Test Continuidad", "Aislamiento EMI", "EXAMEN NIVEL 6"] },
-            { n: "Fase 7: Mecánica y CAD", l: ["Software CAD", "Planos 2D", "Modelado 3D", "Ensambles", "Restricciones", "Tolerancias", "Propiedades Material", "Simulación Estática", "Mecanismos", "Engranajes", "Transmisión", "Poleas", "Articulaciones", "Exportar STL", "Renders", "EXAMEN NIVEL 7"] },
-            { n: "Fase 8: Fabricación Digital", l: ["Tecnología FDM", "Tipos Filamento", "Slicing Soft", "Altura Capa", "Relleno (Infill)", "Soportes", "Nivelación Cama", "Calibración Pasos", "Adhesión", "Post-procesado", "Fallas Comunes", "Mantenimiento", "Corte Láser", "Fresado CNC", "Seguridad Taller", "EXAMEN NIVEL 8"] },
-            { n: "Fase 9: IoT y Comunicación", l: ["Protocolo HTTP", "MQTT Básicos", "Configuración ESP32", "Deep Sleep", "Blynk/Thingspeak", "API REST", "Servidores Web", "JSON Parsing", "Seguridad WiFi", "Módulos Lora", "Bluetooth BLE", "OTA Updates", "Nodos Sensores", "Dashboard IoT", "Websockets", "EXAMEN NIVEL 9"] },
-            { n: "Fase 10: Control de Lazo Cerrado", l: ["Teoría Control", "Error Sistemas", "Control P", "Control I", "Control D", "Tuning PID", "Algoritmo C++", "Sampling Rate", "Saturación", "Ziegler-Nichols", "Filtros Digitales", "Estabilidad", "Feedback Óptico", "Encoders", "Lógica Difusa", "EXAMEN NIVEL 10"] },
-            { n: "Fase 11: Cinemática Móvil", l: ["Tracción Diferencial", "Odometría", "Mapeo Básico", "Evitación Obstáculos", "Seguidor Línea", "PID en Móviles", "Baterías LiPo", "Sistemas BMS", "Chasis y Torque", "Rozamiento", "Navegación", "Encoders Magnéticos", "Cinemática Inversa", "Estabilidad Giro", "Planificación", "EXAMEN NIVEL 11"] },
-            { n: "Fase 12: Brazos Robóticos", l: ["Grados Libertad", "Eslabones", "Parámetros DH", "Matrices Transf.", "Cinemática Directa", "Cinemática Inversa", "Jacobiano", "Planificación Trayect.", "Motores Torque", "Estructura", "Grippers", "Precisión Repet.", "Seguridad Industrial", "Espacio Trabajo", "Singularidades", "EXAMEN NIVEL 12"] },
-            { n: "Fase 13: Visión Artificial", l: ["Cámaras e Interfaces", "Espacios Color", "OpenCV Intro", "Umbralización", "Detección Bordes", "Contornos", "Filtros Imagen", "Seguimiento Color", "Histogramas", "Detección Rostros", "OCR Básico", "Calibración Lente", "Raspberry Pi Cam", "FPS y Optimización", "Deep Learning Intro", "EXAMEN NIVEL 13"] },
-            { n: "Fase 14: IA Embebida", l: ["Conceptos ML", "Redes Neuronales", "Datasets", "Entrenamiento", "Edge AI", "TensorFlow Lite", "Regresión Lineal", "Clasificación", "Toma Decisiones", "Lógica Difusa", "Agentes Intelig.", "Optimización", "Modelos Cuantiz.", "Inferencia", "Hardware IA", "EXAMEN NIVEL 14"] },
-            { n: "Fase 15: Middleware ROS", l: ["Arquitectura ROS", "Nodos y Topics", "Mensajes", "Servicios", "Parámetros", "Launch Files", "Catkin Workspace", "Simulación Gazebo", "Visualización Rviz", "Transformadas TF2", "Modelado URDF", "Acciones", "Bags y Logs", "Multirobot", "Navegación Stack", "EXAMEN NIVEL 15"] },
-            { n: "Fase 16: Linux Embebido", l: ["Terminal Básica", "Sistemas Archivos", "Permisos", "Conexión SSH", "Scripting Bash", "Paquetes Apt", "Tareas Cron", "Compilación C++", "Python para Robótica", "Gestión GPIO", "Redes Linux", "Procesos", "Monitoreo", "Kernel Intro", "Embedded Linux", "EXAMEN NIVEL 16"] },
-            { n: "Fase 17: Gestión Energía", l: ["Química Baterías", "Carga y Descarga", "Balanceo Celdas", "Circuitos PCM/BMS", "Convertidores Buck", "Convertidores Boost", "Reguladores LDO", "Eficiencia Energ.", "Disipación Calor", "Energía Solar", "Modos Bajo Consumo", "Protecciones Galvan.", "Medición Capacidad", "EMI en Potencia", "Diseño Fuentes", "EXAMEN NIVEL 17"] },
-            { n: "Fase 18: Ética y Normativa", l: ["Leyes Asimov", "ISO 10218", "Seguridad Cobots", "Privacidad Datos", "Propiedad Intelect.", "Patentes", "Impacto Ambiental", "Obsolescencia", "Responsab. Social", "Normas Eléctricas", "Certificaciones", "Documentación", "Costos Proyecto", "Marketing Técnico", "Ética Profesional", "EXAMEN NIVEL 18"] },
-            { n: "Fase 19: Proyecto Final", l: ["Definición Problema", "Estado del Arte", "Presupuesto", "Diagrama Gantt", "Diseño Conceptual", "Lista Materiales", "Modelado Final", "Prototipo POC", "Iteración Diseño", "Hardware Final", "Software Final", "Integración", "Manual Usuario", "Pitch Presentación", "Demostración", "ANTEPROYECTO"] },
-            { n: "Fase 20: Carrera Profesional", l: ["Revisión Portafolio", "GitHub y LinkedIn", "Redacción CV", "Entrevistas Técnicas", "Pruebas Código", "Marca Personal", "Networking", "Soft Skills", "Inglés Técnico", "Freelancing", "Gestión Proyectos", "Innovación", "Postgrados", "Emprendimiento", "Ética Laboral", "MAESTRO FINAL"] }
+        const FULL_CURRICULUM = [
+            { n: "Electrónica Básica", l: ["Introducción al flujo de electrones", "Ley de Ohm y potencia", "Uso del multímetro digital", "Circuitos en serie", "Circuitos en paralelo", "Resistencias y códigos", "Condensadores", "Diodos y rectificación", "Transistores", "Uso de la Protoboard", "Análisis de caída de tensión", "Corriente AC vs DC", "Seguridad eléctrica", "Soldadura blanda", "Lectura de esquemas", "Certificación Nivel 1"] },
+            { n: "Arquitectura Arduino", l: ["Historia de Arduino", "Anatomía de la placa Uno", "Instalación del IDE", "Setup y Loop", "Digital Write", "Digital Read", "Analog Read (ADC)", "PWM (Analog Write)", "Monitor Serial", "Variables en C++", "Condicionales (If)", "Bucles (For/While)", "Creación de funciones", "Uso de librerías", "Gestión de memoria", "Certificación Nivel 2"] },
+            { n: "Programación en C++", l: ["Sintaxis y punto y coma", "Tipos de datos", "Operadores aritméticos", "Punteros y direcciones", "Arreglos (Arrays)", "Estructuras de datos", "Clases y Objetos", "Herencia básica", "Polimorfismo", "Manejo de errores", "Bibliotecas estándar", "Preprocesador", "Depuración de código", "Bitwise (Operaciones de bits)", "Sistemas Hex y Bin", "Certificación Nivel 3"] },
+            { n: "Sensores Avanzados", l: ["Infrarrojos (IR)", "Ultrasonidos (HC-SR04)", "LDR y Fotoresistencias", "DHT11 (Humedad/Temp)", "Sensor de lluvia/suelo", "Giroscopio (MPU6050)", "Acelerómetro", "Magnetómetro", "Presión Barométrica", "Sensores de Gas", "Módulos RFID", "Teclado Matricial", "Pantallas LCD I2C", "Pantallas OLED", "Interrupciones externas", "Certificación Nivel 4"] },
+            { n: "Actuadores y Motores", l: ["Servomotores", "Motores DC", "Puente H (L298N)", "Control de velocidad", "Motores Paso a Paso", "Drivers A4988", "Uso de Relés", "Solenoides", "Buzzer pasivo/activo", "Altavoces y tonos", "Motores Brushless", "Controladores ESC", "Neumática básica", "Hidráulica básica", "Cálculo de corriente", "Certificación Nivel 5"] },
+            { n: "Diseño de PCBs", l: ["Introducción a KiCad/EasyEDA", "Captura de esquemas", "Creación de Footprints", "Ruteado de pistas", "Planos de tierra", "Vías y multicapas", "Reglas de diseño (DRC)", "Librerías de componentes", "Generación de Gerbers", "Componentes SMD", "Soldadura en horno/pasta", "Uso de Stencils", "Inspección de calidad", "Test de continuidad", "Protección ESD", "Certificación Nivel 6"] },
+            { n: "Mecánica y CAD", l: ["Software CAD (Fusion360)", "Bocetos 2D", "Extrusión y Revolución", "Ensambles mecánicos", "Restricciones de movimiento", "Tolerancias y ajustes", "Propiedades físicas", "Simulación de estrés", "Diseño de engranajes", "Poleas y correas", "Articulaciones", "Exportación para 3D", "Renderizado", "Animación técnica", "Materiales comunes", "Certificación Nivel 7"] },
+            { n: "Impresión 3D", l: ["Tecnología FDM", "Materiales (PLA/PETG/ABS)", "Software Slicer", "Configuración de capas", "Infill (Relleno)", "Soportes y adherencia", "Nivelación de cama", "Calibración de pasos", "Post-procesado", "Fallas comunes", "Mantenimiento extrusor", "Corte Láser", "Fresado CNC", "Seguridad en taller", "Diseño para impresión", "Certificación Nivel 8"] },
+            { n: "IoT y Nube", l: ["Protocolo HTTP", "Introducción a MQTT", "Configuración de ESP32", "Deep Sleep (Ahorro)", "Blynk y Dashboards", "Integración con APIs", "Servidores Web", "Parsing de JSON", "Seguridad en Wi-Fi", "Módulos Lora", "Bluetooth BLE", "Actualizaciones OTA", "Suscripción a topics", "Cloud Databases", "Websockets", "Certificación Nivel 9"] },
+            { n: "Control de Sistemas", l: ["Teoría de Control", "Sistemas de lazo abierto", "Lazo cerrado (Feedback)", "Error de estado", "Control Proporcional (P)", "Integral (I)", "Derivativo (D)", "Ajuste de PID", "Sampling Rate", "Filtros digitales", "Filtro Kalman", "Estabilidad de Nyquist", "Respuesta en frecuencia", "Simulación en Python", "Lógica Difusa", "Certificación Nivel 10"] },
+            { n: "Cinemática Móvil", l: ["Tracción Diferencial", "Modelos de ruedas", "Odometría", "Mapeo (SLAM)", "Evitación de obstáculos", "Seguimiento de paredes", "Navegación por Waypoints", "Baterías LiPo/Li-ion", "Sistemas BMS", "Cálculo de torque", "Fricción y adherencia", "Planificación de rutas", "Encoders magnéticos", "Localización", "Sensores TOF", "Certificación Nivel 11"] },
+            { n: "Brazos Robóticos", l: ["Grados de Libertad", "Matrices de transformación", "Denavit-Hartenberg", "Cinemática Directa", "Cinemática Inversa", "Jacobiano", "Planificación de trayectoria", "Motores de alto torque", "Rigidez estructural", "Grippers y pinzas", "Precisión y repetibilidad", "Seguridad en cobots", "Espacio de trabajo", "Singularidades", "Motores paso a paso", "Certificación Nivel 12"] },
+            { n: "Visión Artificial", l: ["Cámaras e interfaces", "Espacios de color", "Umbralización (Threshold)", "Filtros de imagen", "Detección de bordes", "Detección de contornos", "Reconocimiento de color", "Histogramas", "OpenCV en Python", "Raspberry Pi Cam", "FPS y latencia", "Calibración de cámara", "OCR (Texto)", "Reconocimiento facial", "IA de visión", "Certificación Nivel 13"] },
+            { n: "IA Embebida", l: ["Modelos de Machine Learning", "Redes Neuronales", "Entrenamiento de datos", "Inferencia en bordes", "TensorFlow Lite", "Edge Impulse", "Regresión", "Clasificación de audio", "Detección de gestos", "Optimización de modelos", "Cuantización", "Hardware IA (Coral/Jetson)", "Toma de decisiones", "Agentes autónomos", "Ética en IA", "Certificación Nivel 14"] },
+            { n: "Middleware ROS", l: ["Arquitectura de ROS", "Nodos y Temas", "Publicadores/Suscriptores", "Servicios de ROS", "Parámetros", "Launch Files", "Simulación Gazebo", "Visualización Rviz", "Transformadas TF2", "Modelado URDF", "Acciones de ROS", "Logs y Debugging", "Multirobot", "Navegación Stack", "Paquetes de ROS", "Certificación Nivel 15"] },
+            { n: "Linux Embebido", l: ["Terminal de comandos", "Sistemas de archivos", "Permisos y Root", "Conexión SSH", "Scripting en Bash", "Instalación de paquetes", "Procesos y servicios", "Configuración de red", "Uso de GPIO en Linux", "Compilación cruzada", "Kernel de Linux", "Docker en Robótica", "Monitoreo de recursos", "Seguridad en Linux", "Webmin", "Certificación Nivel 16"] },
+            { n: "Gestión de Energía", l: ["Capacidad de baterías", "Carga y descarga (C-rate)", "Celdas en serie/paralelo", "Diseño de BMS", "Eficiencia de convertidores", "Reguladores Buck/Boost", "Gestión térmica", "Aislamiento de ruido", "Fuentes conmutadas", "Energía solar en robots", "Consumo en reposo", "Fusibles y protección", "Distribución de potencia", "Supercapacitores", "Wireless Charging", "Certificación Nivel 17"] },
+            { n: "Ética y Normativa", l: ["Leyes de la Robótica", "Normas ISO 10218", "Seguridad ocupacional", "Privacidad de datos", "Propiedad Intelectual", "Patentes en robótica", "Sostenibilidad", "Obsolescencia", "Responsabilidad social", "Normas de marcado CE", "Documentación técnica", "Costos de producción", "Viabilidad de mercado", "Ética profesional", "IA responsable", "Certificación Nivel 18"] },
+            { n: "Anteproyecto Final", l: ["Definición del problema", "Investigación de mercado", "Estado del arte", "Presupuestación", "Cronograma de Gantt", "Diseño conceptual", "MVP (Mínimo viable)", "Pruebas de hardware", "Pruebas de software", "Integración de sistemas", "Documentación técnica", "Video demostrativo", "Preparación de Pitch", "Evaluación por pares", "Pulido estético", "Defensa anteproyecto"] },
+            { n: "Carrera y Portafolio", l: ["Revisión de competencias", "GitHub y LinkedIn", "Redacción de CV técnico", "Entrevistas de trabajo", "Simulacro de examen", "Reto sorpresa 24h", "Documentación de grado", "Optimización de perfiles", "Emprendimiento tech", "Propiedad intelectual", "Ética en ingeniería", "Búsqueda de empleo", "Networking", "Soft Skills", "Marca Personal", "EXAMEN MAESTRO FINAL"] }
         ];
 
-        // --- GESTIÓN DE ESTADO ---
-        let state = {
-            xp: parseInt(localStorage.getItem('rc_master_xp')) || 0,
-            lives: localStorage.getItem('rc_master_lives') !== null ? parseInt(localStorage.getItem('rc_master_lives')) : 5,
-            completed: JSON.parse(localStorage.getItem('rc_master_completed')) || []
-        };
+        function getQuestionData(lessonTitle, isExam) {
+            if(isExam) {
+                return {
+                    q: `¿Estás listo para validar tus conocimientos en este nivel? Para certificar la unidad "${lessonTitle}", debes identificar el pilar fundamental aprendido.`,
+                    o: ["Integración de sistemas", "Copia de seguridad", "Gestión de recursos", "Seguridad operativa"],
+                    a: 0,
+                    msg_ok: "¡FELICIDADES! Has aprobado el examen de certificación. Se ha desbloqueado el siguiente nivel.",
+                    msg_ko: "El examen requiere una comprensión más profunda. Repasa los conceptos de la fase."
+                };
+            }
 
-        function saveState() {
-            localStorage.setItem('rc_master_xp', state.xp);
-            localStorage.setItem('rc_master_lives', state.lives);
-            localStorage.setItem('rc_master_completed', JSON.stringify(state.completed));
-            updateUI();
-        }
-
-        // --- GENERADOR DE PREGUNTAS LÓGICO ---
-        function generateTechnicalQuestion(lessonTitle, phaseIndex) {
-            const themes = [
-                { q: "¿Cuál es el parámetro crítico para asegurar la estabilidad en ", a: "Asegurar el margen de fase.", o: ["Aumentar el voltaje", "Asegurar el margen de fase.", "Eliminar la tierra", "Reducir el cableado"] },
-                { q: "Para implementar correctamente ", a: "Utilizar el protocolo estándar.", o: ["Utilizar el protocolo estándar.", "Ignorar las librerías", "Soldar todo directo", "Subir el baudrate al máximo"] },
-                { q: "En un entorno de alta precisión para ", a: "Reducir el ruido electromagnético.", o: ["Usar cables más largos", "Reducir el ruido electromagnético.", "Aumentar la temperatura", "Quitar los capacitores"] }
+            const categories = [
+                { keyword: "Ley", q: "¿Cuál es la relación fundamental en la ", a: "V = I * R", o: ["V = I * R", "P = V / I", "R = V * I", "I = V + R"], ok: "Exacto. La Ley de Ohm establece que el voltaje es proporcional a la corriente por la resistencia.", ko: "Incorrecto. Recuerda el triángulo de Ohm: V arriba, I y R abajo." },
+                { keyword: "C++", q: "¿Qué indica el punto y coma en ", a: "Fin de instrucción", o: ["Fin de programa", "Fin de instrucción", "Un comentario", "Una pausa"], ok: "Correcto. El compilador usa el ';' para saber dónde termina cada orden técnica.", ko: "Cuidado. Sin el punto y coma, el compilador mezclará las líneas y dará error." },
+                { keyword: "Sensor", q: "¿Qué caracteriza a un sensor en la ", a: "Conversión de magnitud física a eléctrica", o: ["Creación de energía", "Conversión de magnitud física a eléctrica", "Movimiento mecánico", "Almacenamiento de datos"], ok: "¡Bien! Los sensores traducen el mundo físico (luz, calor) a voltajes que entiende el robot.", ko: "Piénsalo de nuevo. Un sensor 'siente', no genera movimiento ni energía." },
+                { keyword: "Arduino", q: "La función principal loop() sirve para:", a: "Repetir código infinitamente", o: ["Configurar pines", "Repetir código infinitamente", "Cerrar el programa", "Declarar variables"], ok: "¡Muy bien! Loop permite que el robot revise sus sensores y actúe constantemente.", ko: "Error. Loop significa bucle; es donde el robot vive su 'vida' operativa." }
             ];
-            
-            const theme = themes[lessonTitle.length % themes.length];
+
+            let f = categories.find(c => lessonTitle.toLowerCase().includes(c.keyword.toLowerCase()));
+            if(!f) f = { q: "¿Cuál es el propósito de ", a: "Optimizar el proceso técnico", o: ["Gastar más materiales", "Optimizar el proceso técnico", "Añadir complejidad innecesaria", "Ignorar las normas"], ok: "Correcto. En robótica siempre buscamos la eficiencia y la optimización del sistema.", ko: "No es correcto. El objetivo siempre es mejorar el rendimiento y la fiabilidad." };
+
             return {
-                q: theme.q + `"${lessonTitle}"?`,
-                o: theme.o,
-                a: theme.o.indexOf(theme.a),
-                e: "El análisis técnico confirma la viabilidad del sistema bajo estas condiciones."
+                q: f.q + ` "${lessonTitle}"?`,
+                o: f.o,
+                a: f.o.indexOf(f.a),
+                msg_ok: f.ok,
+                msg_ko: f.ko
             };
         }
 
-        // --- UI Y RENDER ---
+        const STORAGE_KEY = "roboclass_exam_save_320";
+        let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { xp: 0, lives: 5, completed: [] };
+        let active = null;
+        let isEvaluating = false;
+
+        function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUI(); }
+
         function renderMap() {
-            const map = document.getElementById('map-content');
-            map.innerHTML = "";
+            const container = document.getElementById('map-content');
+            container.innerHTML = "";
             let globalIdx = 0;
 
-            RAW_CURRICULUM.forEach((phase, pIdx) => {
+            FULL_CURRICULUM.forEach((phase, pIdx) => {
                 const head = document.createElement('div');
-                head.className = "w-full text-center mt-20 mb-10";
-                head.innerHTML = `
-                    <div class="inline-block px-4 py-1 bg-slate-900 rounded-full mb-2">
-                        <span class="text-[10px] font-mono text-blue-400 font-bold uppercase tracking-widest">MÓDULO ${pIdx + 1}</span>
-                    </div>
-                    <h3 class="text-slate-800 font-black text-xl uppercase tracking-tighter">${phase.n}</h3>
-                `;
-                map.appendChild(head);
+                head.className = "w-full text-center mt-12";
+                head.innerHTML = `<p class="text-blue-500 font-black text-xs uppercase tracking-widest mb-1">FASE ${pIdx + 1}</p>
+                                  <h3 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">${phase.n}</h3>`;
+                container.appendChild(head);
 
-                const grid = document.createElement('div');
-                grid.className = "flex flex-col items-center gap-8";
+                phase.l.forEach((title, lIdx) => {
+                    const id = `f${pIdx}l${lIdx}`;
+                    const isExam = lIdx === 15;
+                    const done = state.completed.includes(id);
+                    const current = state.completed.length === globalIdx;
+                    const locked = state.completed.length < globalIdx;
 
-                phase.l.forEach((name, lIdx) => {
-                    const id = `p${pIdx}l${lIdx}`;
-                    const isDone = state.completed.includes(id);
-                    const isNow = state.completed.length === globalIdx;
-                    const isLock = state.completed.length < globalIdx;
-
-                    const btn = document.createElement('button');
-                    btn.className = `w-16 h-16 rounded-full border-b-4 flex items-center justify-center font-bold text-lg shadow-xl transition-all relative z-10 
-                        ${isDone ? 'node-completed' : (isNow ? 'node-current' : 'node-locked')}`;
+                    const node = document.createElement('button');
+                    node.className = `w-16 h-16 rounded-full border-b-4 flex items-center justify-center font-black text-xl shadow-lg transition-all z-10 
+                        ${done ? 'node-completed' : (current ? 'node-current' : 'node-locked')} ${isExam ? 'node-cert' : ''}`;
                     
-                    btn.innerText = (lIdx + 1);
-                    btn.style.transform = `translateX(${Math.sin(globalIdx * 0.7) * 70}px)`;
-                    
-                    if(!isLock) btn.onclick = () => openLesson(id, name, phase.n, pIdx);
-                    grid.appendChild(btn);
+                    node.innerHTML = isExam ? '<i class="fas fa-graduation-cap text-sm"></i>' : (lIdx + 1);
+                    node.style.transform = `translateX(${Math.sin(globalIdx * 0.6) * 60}px)`;
+
+                    if(!locked) node.onclick = () => openLesson(id, title, phase.n, isExam);
+                    container.appendChild(node);
                     globalIdx++;
                 });
-                map.appendChild(grid);
             });
-            setTimeout(drawLines, 500);
+            setTimeout(drawPath, 200);
         }
 
-        function drawLines() {
+        function drawPath() {
             const canvas = document.getElementById('path-canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = window.innerWidth;
             canvas.height = document.getElementById('app-container').scrollHeight;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
-            ctx.strokeStyle = "#94a3b8";
+            ctx.strokeStyle = "#cbd5e1";
             ctx.lineWidth = 6;
             ctx.setLineDash([15, 10]);
-
-            const nodes = document.querySelectorAll('#map-content button');
-            nodes.forEach((n, i) => {
-                const r = n.getBoundingClientRect();
-                const x = r.left + r.width/2;
-                const y = r.top + r.height/2 + window.scrollY;
+            const buttons = document.querySelectorAll('#map-content button');
+            buttons.forEach((btn, i) => {
+                const rect = btn.getBoundingClientRect();
+                const x = rect.left + rect.width/2;
+                const y = rect.top + rect.height/2 + window.scrollY;
                 if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.stroke();
         }
 
-        let active = null;
-        let isChecking = false;
-
-        function openLesson(id, title, pName, pIdx) {
-            if(state.lives <= 0) return alert("SISTEMA BLOQUEADO: Recarga energía o reinicia el progreso.");
-            active = { id, title, pName, q: generateTechnicalQuestion(title, pIdx), selected: null };
-            isChecking = false;
+        function openLesson(id, title, phaseName, isExam) {
+            if(state.lives <= 0) return alert("¡Sin vidas! Debes esperar o reiniciar.");
+            active = { id, title, phaseName, isExam, data: getQuestionData(title, isExam), selected: null };
+            isEvaluating = false;
 
             document.getElementById('lesson-overlay').classList.remove('hidden');
+            document.getElementById('badge-exam').className = isExam ? "mb-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase tracking-widest" : "hidden";
+            document.getElementById('phase-label').innerText = `Fase: ${phaseName}`;
             document.getElementById('lesson-title').innerText = title;
-            document.getElementById('phase-tag').innerText = pName;
-            document.getElementById('lesson-q').innerText = active.q.q;
-            document.getElementById('lesson-progress').style.width = "0%";
-            
-            const opts = document.getElementById('quiz-options');
-            opts.innerHTML = "";
-            active.q.o.forEach((txt, i) => {
+            document.getElementById('lesson-question').innerText = active.data.q;
+            document.getElementById('lesson-bar').style.width = "0%";
+            document.getElementById('feedback-text').classList.add('hidden');
+            document.getElementById('footer-feedback').className = "p-8 border-t-2 bg-white";
+            document.getElementById('action-btn').innerText = "Comprobar";
+            document.getElementById('action-btn').className = "btn-push w-full md:w-48 py-4 bg-blue-500 border-blue-700 text-white rounded-2xl font-black uppercase";
+
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = "";
+            active.data.o.forEach((opt, i) => {
                 const b = document.createElement('button');
-                b.className = "p-5 border-2 rounded-2xl text-left bg-white font-bold text-slate-700 hover:border-blue-400 transition-all shadow-sm";
-                b.innerText = txt;
-                b.onclick = () => {
-                    if(isChecking) return;
-                    document.querySelectorAll('#quiz-options button').forEach(x => x.classList.remove('border-blue-600', 'bg-blue-50'));
-                    b.classList.add('border-blue-600', 'bg-blue-50');
-                    active.selected = i;
-                };
-                opts.appendChild(b);
+                b.className = "option-btn p-5 rounded-2xl text-left font-bold text-slate-700 bg-white";
+                b.innerText = opt;
+                b.onclick = () => selectOption(b, i);
+                grid.appendChild(b);
             });
-            
-            document.getElementById('feedback-box').classList.add('hidden');
-            document.getElementById('check-btn').innerText = "Verificar Análisis";
         }
 
-        function handleInteraction() {
-            if(isChecking) { closeLesson(); return; }
+        function selectOption(el, idx) {
+            if(isEvaluating) return;
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('option-selected'));
+            el.classList.add('option-selected');
+            active.selected = idx;
+        }
+
+        function checkAnswer() {
+            if(isEvaluating) { closeLesson(); return; }
             if(active.selected === null) return;
 
-            isChecking = true;
-            const isCorrect = active.selected === active.q.a;
-            
-            document.querySelectorAll('#quiz-options button').forEach((b, i) => {
-                if(i === active.q.a) b.classList.add('option-correct');
+            isEvaluating = true;
+            const isCorrect = active.selected === active.data.a;
+            const btn = document.getElementById('action-btn');
+            const footer = document.getElementById('footer-feedback');
+            const feedback = document.getElementById('feedback-text');
+
+            document.querySelectorAll('.option-btn').forEach((b, i) => {
+                if(i === active.data.a) b.classList.add('option-correct');
                 else if(i === active.selected) b.classList.add('option-wrong');
+                b.disabled = true;
             });
 
-            const feed = document.getElementById('feedback-box');
-            feed.classList.remove('hidden');
-            
+            feedback.classList.remove('hidden');
             if(isCorrect) {
-                confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.8 } });
                 if(!state.completed.includes(active.id)) {
                     state.completed.push(active.id);
-                    state.xp += 100;
+                    state.xp += active.isExam ? 500 : 100;
                 }
-                feed.className = "mt-8 p-6 rounded-2xl border-l-8 bg-green-50 border-green-500 text-green-800";
-                document.getElementById('feedback-text').innerText = "ANÁLISIS VÁLIDO: " + active.q.e;
-                document.getElementById('lesson-progress').style.width = "100%";
-                document.getElementById('check-btn').innerText = "Continuar";
+                footer.className = "p-8 border-t-2 bg-green-100";
+                document.getElementById('feedback-icon').className = "w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white";
+                document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-check"></i>';
+                document.getElementById('feedback-status').innerText = active.isExam ? "¡CERTIFICADO OBTENIDO!" : "¡Buen trabajo!";
+                document.getElementById('feedback-status').className = "font-black text-xl text-green-700";
+                document.getElementById('feedback-msg').innerText = active.data.msg_ok;
+                document.getElementById('lesson-bar').style.width = "100%";
+                btn.className = "btn-push w-full md:w-48 py-4 bg-green-500 border-green-700 text-white rounded-2xl font-black uppercase";
+                btn.innerText = "Continuar";
             } else {
                 state.lives--;
-                feed.className = "mt-8 p-6 rounded-2xl border-l-8 bg-red-50 border-red-500 text-red-800";
-                document.getElementById('feedback-text').innerText = "ERROR TÉCNICO: Se ha degradado la integridad del sistema.";
-                document.getElementById('check-btn').innerText = "Reintentar";
+                footer.className = "p-8 border-t-2 bg-rose-100";
+                document.getElementById('feedback-icon').className = "w-12 h-12 rounded-full flex items-center justify-center bg-rose-500 text-white";
+                document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-times"></i>';
+                document.getElementById('feedback-status').innerText = "Incorrecto";
+                document.getElementById('feedback-status').className = "font-black text-xl text-rose-700";
+                document.getElementById('feedback-msg').innerText = active.data.msg_ko;
+                btn.className = "btn-push w-full md:w-48 py-4 bg-rose-500 border-rose-700 text-white rounded-2xl font-black uppercase";
+                btn.innerText = "Entendido";
             }
-
-            saveState();
+            save();
             renderMap();
         }
 
         function closeLesson() { document.getElementById('lesson-overlay').classList.add('hidden'); }
-        function resetProgress() { if(confirm("¿Seguro que quieres borrar las 320 actividades?")) { localStorage.clear(); location.reload(); } }
+        function confirmReset() { if(confirm("¿Borrar todo el progreso?")) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
 
         function updateUI() {
             document.getElementById('stat-xp').innerText = state.xp.toLocaleString();
             document.getElementById('stat-lives').innerText = state.lives;
             document.getElementById('modal-lives').innerText = state.lives;
-            
-            const total = 20 * 16;
-            const pct = Math.round((state.completed.length / total) * 100);
-            document.getElementById('progress-pct').innerText = pct + "%";
+            const progress = (state.completed.length / 320) * 100;
+            document.getElementById('master-progress').style.width = `${progress}%`;
         }
 
         window.onload = () => { renderMap(); updateUI(); };
-        window.onresize = drawLines;
+        window.onresize = drawPath;
     </script>
 </body>
 </html>
