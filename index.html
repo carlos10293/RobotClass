@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoboClass Master - Carrera de Ingeniería Robótica</title>
+    <title>RoboClass - Ingeniería y Certificación</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -21,29 +21,46 @@
             70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(28, 176, 246, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 176, 246, 0); }
         }
-        #path-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; opacity: 0.2; }
+        #path-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; opacity: 0.15; }
         .option-btn { transition: all 0.2s; border: 2px solid #e5e7eb; border-bottom-width: 4px; }
         .option-selected { border-color: #84d8ff; background-color: #ddf4ff; color: #1899d6; }
         .option-correct { border-color: #58cc02; background-color: #d7ffb8; color: #46a302; }
         .option-wrong { border-color: #ea2b2b; background-color: #ffdfe0; color: #ea2b2b; }
+        .expert-mode { background-color: #0f172a !important; color: #38bdf8 !important; }
     </style>
 </head>
-<body class="bg-slate-50">
+<body id="main-body">
 
     <nav class="fixed top-0 left-0 w-full bg-white border-b-2 border-slate-200 z-50 h-16 flex items-center justify-between px-6">
         <div class="flex items-center gap-2">
             <span class="text-2xl font-black text-blue-600 tracking-tighter">ROBOCLASS</span>
-            <span class="bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Ingeniería</span>
+            <span id="badge-expert" class="hidden bg-slate-800 text-sky-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-sky-400">Expert</span>
         </div>
         <div class="flex items-center gap-6 font-bold text-slate-600">
-            <div class="flex items-center gap-2 text-orange-500"><i class="fas fa-fire"></i> <span id="stat-xp">0</span></div>
-            <div class="flex items-center gap-2 text-rose-500"><i class="fas fa-heart"></i> <span id="stat-lives">5</span></div>
-            <button onclick="confirmReset()" class="hover:text-red-500 transition-colors"><i class="fas fa-trash-alt"></i></button>
+            <div class="flex items-center gap-2 text-orange-500" title="Racha diaria">
+                <i class="fas fa-fire"></i> <span id="stat-streak">0</span>
+            </div>
+            <div class="flex items-center gap-2 text-blue-500" title="Experiencia">
+                <i class="fas fa-bolt"></i> <span id="stat-xp">0</span>
+            </div>
+            <div class="flex items-center gap-2 text-rose-500" title="Vidas">
+                <i class="fas fa-heart"></i> <span id="stat-lives">5</span>
+            </div>
+            <button onclick="showCertificates()"><i class="fas fa-award text-amber-500 text-xl"></i></button>
         </div>
     </nav>
 
     <div class="fixed top-16 left-0 w-full bg-white h-1.5 z-40">
         <div id="master-progress" class="h-full bg-green-500 transition-all duration-1000" style="width: 0%"></div>
+    </div>
+
+    <!-- Misión Activa -->
+    <div id="mission-panel" class="fixed bottom-6 left-6 z-40 bg-white p-4 rounded-2xl shadow-2xl border-2 border-slate-200 max-w-xs hidden">
+        <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Misión Activa</p>
+        <h4 id="mission-title" class="font-bold text-slate-800 leading-tight">Construir Seguidor de Línea</h4>
+        <div class="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div id="mission-progress" class="h-full bg-blue-500 w-0 transition-all"></div>
+        </div>
     </div>
 
     <main id="app-container" class="relative pt-24 pb-40 flex flex-col items-center min-h-screen">
@@ -62,12 +79,15 @@
         </div>
         <div class="flex-1 overflow-y-auto p-6 md:p-12">
             <div class="max-w-2xl mx-auto">
-                <div id="badge-exam" class="hidden mb-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase">
-                    <i class="fas fa-graduation-cap"></i> Examen de Certificación
+                <div class="flex items-center gap-3 mb-4">
+                    <div id="badge-exam" class="hidden px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase">
+                        <i class="fas fa-graduation-cap"></i> Examen
+                    </div>
+                    <div id="diff-badge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase"></div>
                 </div>
                 <h4 id="phase-label" class="text-blue-500 font-black uppercase text-xs tracking-widest mb-2"></h4>
                 <h2 id="lesson-title" class="text-3xl font-black text-slate-800 mb-8 leading-tight"></h2>
-                <div class="bg-white border-2 border-slate-200 rounded-3xl p-8 mb-8 shadow-sm">
+                <div id="q-container" class="bg-white border-2 border-slate-200 rounded-3xl p-8 mb-8 shadow-sm">
                     <p id="lesson-question" class="text-xl font-bold text-slate-700 leading-relaxed"></p>
                 </div>
                 <div id="options-grid" class="grid gap-4"></div>
@@ -87,6 +107,17 @@
         </div>
     </div>
 
+    <!-- Modal Certificados -->
+    <div id="cert-modal" class="fixed inset-0 bg-black/60 z-[110] hidden flex items-center justify-center p-6" onclick="this.classList.add('hidden')">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full" onclick="event.stopPropagation()">
+            <h3 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+                <i class="fas fa-certificate text-amber-500"></i> Mis Certificados
+            </h3>
+            <div id="cert-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+            <button onclick="document.getElementById('cert-modal').classList.add('hidden')" class="w-full mt-8 py-3 bg-slate-100 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-all">Cerrar</button>
+        </div>
+    </div>
+
     <script>
         const PHASES = [
             "1: Electrónica Básica", "2: Arduino y MCU", "3: Programación C++", "4: Sensores", "5: Actuadores", 
@@ -96,47 +127,65 @@
         ];
 
         const CURRICULUM_DATA = {
-            0: { // Fase 1: Electrónica
-                0: { q: "¿Qué unidad mide la resistencia eléctrica?", a: "Ohmio", o: ["Voltio", "Amperio", "Ohmio", "Vatio"], ok: "Correcto. El Ohmio (Ω) define la oposición al paso de corriente.", ko: "Incorrecto. La resistencia se mide en Ohmios." },
-                1: { q: "¿Qué ley establece que la suma de corrientes que entran a un nodo es igual a la suma de corrientes que salen?", a: "Ley de Kirchhoff de corrientes", o: ["Ley de Ohm", "Ley de Kirchhoff de corrientes", "Ley de Faraday", "Ley de Coulomb"], ok: "Correcto. La KCL describe conservación de carga en un nodo.", ko: "Incorrecto. La ley de Kirchhoff de corrientes define el balance de corriente." },
-                2: { q: "¿Qué parámetro describe la oposición de un capacitor al cambio de voltaje?", a: "Capacitancia", o: ["Resistencia", "Inductancia", "Capacitancia", "Reactancia inductiva"], ok: "Correcto. La capacitancia determina cuánta carga puede almacenar.", ko: "Incorrecto. La capacitancia define la relación Q = C·V." },
-                3: { q: "¿Qué ocurre con la resistencia de un conductor metálico al aumentar la temperatura?", a: "Aumenta", o: ["Disminuye", "Aumenta", "Permanece constante", "Se vuelve infinita"], ok: "Correcto. La agitación térmica dificulta el paso de electrones.", ko: "Incorrecto. La resistencia aumenta con temperatura en metales." },
-                4: { q: "¿Qué dispositivo electrónico permite rectificar corriente alterna?", a: "Diodo", o: ["Transistor", "Condensador", "Diodo", "Inductor"], ok: "Correcto. El diodo permite flujo de corriente en un solo sentido.", ko: "Incorrecto. El diodo se usa para rectificación." },
-                5: { q: "¿Qué parámetro define la ganancia de corriente en un transistor BJT?", a: "Beta (β)", o: ["Gamma", "Beta (β)", "Lambda", "Delta"], ok: "Correcto. β = Ic/Ib es la relación de amplificación.", ko: "Incorrecto. Beta representa la ganancia de corriente." },
-                6: { q: "¿Qué componente almacena energía en forma de campo magnético?", a: "Inductor", o: ["Capacitor", "Inductor", "Resistencia", "Diodo"], ok: "Correcto. Los inductores generan un campo al paso de corriente.", ko: "Incorrecto. El inductor almacena energía magnética." },
-                7: { q: "¿Qué unidad mide la capacitancia?", a: "Faradio", o: ["Ohmio", "Faradio", "Tesla", "Henrio"], ok: "Correcto. Nombrada en honor a Michael Faraday.", ko: "Incorrecto. La capacitancia se mide en Faradios." },
-                8: { q: "¿Qué circuito convierte corriente alterna en continua usando cuatro diodos?", a: "Puente rectificador", o: ["Amplificador operacional", "Puente rectificador", "Filtro RC", "Oscilador"], ok: "Correcto. El puente Graetz rectifica ambos semiciclos.", ko: "Incorrecto. El puente rectificador usa 4 diodos." },
-                9: { q: "¿Qué dispositivo amplifica señales eléctricas?", a: "Transistor", o: ["Diodo", "Transistor", "Resistor", "Inductor"], ok: "Correcto. Controla una corriente grande con una pequeña.", ko: "Incorrecto. El transistor es el dispositivo amplificador base." },
-                10: { q: "¿Qué parámetro mide la oposición total en circuitos AC?", a: "Impedancia", o: ["Resistencia", "Impedancia", "Capacitancia", "Conductancia"], ok: "Correcto. Z = R + jX (parte real e imaginaria).", ko: "Incorrecto. La impedancia es la oposición total en AC." },
-                11: { q: "¿Qué ley relaciona voltaje corriente y resistencia?", a: "Ley de Ohm", o: ["Ley de Maxwell", "Ley de Ohm", "Ley de Gauss", "Ley de Kirchhoff"], ok: "Correcto. V = I·R es la piedra angular.", ko: "Incorrecto. La ley de Ohm relaciona V, I y R." },
-                12: { q: "¿Qué componente estabiliza voltaje en una fuente?", a: "Diodo Zener", o: ["Diodo Zener", "Transistor MOSFET", "Resistor", "Capacitor"], ok: "Correcto. Aprovecha la ruptura controlada para regular.", ko: "Incorrecto. El diodo Zener se usa como regulador de tensión." },
-                13: { q: "¿Qué parámetro mide la rapidez de cambio de corriente en un inductor?", a: "Inductancia", o: ["Resistencia", "Capacitancia", "Inductancia", "Reactancia"], ok: "Correcto. L determina la autoinducción de voltaje.", ko: "Incorrecto. La inductancia controla cambios de corriente." },
-                14: { q: "¿Qué fenómeno permite el almacenamiento de energía en un capacitor?", a: "Campo eléctrico", o: ["Campo magnético", "Campo eléctrico", "Resistencia", "Corriente"], ok: "Correcto. Almacena carga en placas separadas por dieléctrico.", ko: "Incorrecto. El capacitor almacena energía en su campo eléctrico." },
-                15: { q: "EXAMEN FINAL: ¿Cuál es la unidad de la diferencia de potencial?", a: "Voltio", o: ["Ohmio", "Voltio", "Amperio", "Vatio"], ok: "¡Certificado en Electrónica obtenido! Has demostrado bases sólidas.", ko: "Incorrecto. El voltaje se mide en Voltios." }
+            0: { // Fase 1
+                0: { q: "¿Qué unidad mide la resistencia eléctrica?", a: "Ohmio", d: "facil", o: ["Voltio", "Amperio", "Ohmio", "Vatio"], ok: "Correcto. El Ohmio (Ω) define la oposición al paso de corriente.", ko: "Incorrecto." },
+                1: { q: "¿Qué ley establece que la suma de corrientes que entran a un nodo es igual a las que salen?", a: "Ley de Kirchhoff de corrientes", d: "medio", o: ["Ley de Ohm", "Ley de Kirchhoff de corrientes", "Ley de Faraday", "Ley de Coulomb"], ok: "Correcto. KCL es conservación de carga.", ko: "Incorrecto." },
+                10: { q: "Un robot diferencial tiene ruedas de radio 0.05 m. Si giran a 10 rad/s, ¿cuál es la velocidad lineal?", a: "0.5 m/s", d: "dificil", o: ["0.5 m/s", "5 m/s", "0.05 m/s", "2 m/s"], ok: "Correcto. v = r × ω → 0.05 × 10 = 0.5 m/s.", ko: "Incorrecto. Usa v = r·ω." },
+                15: { q: "EXAMEN FINAL: ¿Cuál es la unidad de la diferencia de potencial?", a: "Voltio", d: "medio", o: ["Ohmio", "Voltio", "Amperio", "Vatio"], ok: "¡Certificado en Electrónica obtenido!", ko: "Incorrecto." }
+            },
+            10: { // Cinemática
+                0: { q: "¿Qué modelo describe robots con dos ruedas independientes?", a: "Diferencial", d: "medio", o: ["Holonómico", "Diferencial", "Ackermann", "Omnidireccional"], ok: "Correcto.", ko: "Incorrecto." }
             }
         };
 
-        let state = JSON.parse(localStorage.getItem('robo_master_v4')) || { xp: 0, lives: 5, completed: [] };
+        const MISSIONS = [
+            { id: "line_follower", title: "Construir Seguidor de Línea", phases: [0, 3, 4, 9], reward: 500 },
+            { id: "robotic_arm", title: "Brazo 4 DOF de Precisión", phases: [2, 4, 11], reward: 1000 }
+        ];
+
+        let state = JSON.parse(localStorage.getItem('robo_pro_v5')) || { 
+            xp: 0, lives: 5, completed: [], streak: 0, lastDay: null, certificates: [], activeMission: MISSIONS[0] 
+        };
+        
         let active = null;
         let isEvaluating = false;
 
-        function save() { localStorage.setItem('robo_master_v4', JSON.stringify(state)); updateUI(); }
+        function save() { localStorage.setItem('robo_pro_v5', JSON.stringify(state)); updateUI(); }
+
+        function rewardXP(diff) {
+            const table = { "facil": 50, "medio": 100, "dificil": 250 };
+            return table[diff] || 100;
+        }
+
+        function checkStreak() {
+            const today = new Date().toDateString();
+            if (state.lastDay !== today) {
+                if (state.lastDay === new Date(Date.now() - 86400000).toDateString()) {
+                    state.streak++;
+                } else {
+                    state.streak = 1;
+                }
+                state.lastDay = today;
+                save();
+            }
+        }
 
         function getQuestion(pIdx, lIdx) {
-            // Si existen datos manuales, usarlos
-            if(CURRICULUM_DATA[pIdx] && CURRICULUM_DATA[pIdx][lIdx]) {
-                return CURRICULUM_DATA[pIdx][lIdx];
+            // Expert Mode Injection
+            if (state.xp > 10000 && Math.random() > 0.5) {
+                return {
+                    q: "Calcula la matriz de transformación homogénea T para una rotación de 90° en Z y traslación [1,0,0]. ¿Cuál es el elemento T(0,3)?",
+                    a: "1", d: "dificil", o: ["0", "1", "0.5", "-1"], ok: "Dominas la cinemática avanzada.", ko: "Revisa matrices de Denavit-Hartenberg."
+                };
             }
+
+            if(CURRICULUM_DATA[pIdx] && CURRICULUM_DATA[pIdx][lIdx]) return CURRICULUM_DATA[pIdx][lIdx];
             
-            // Generador dinámico para el resto de las 320 lecciones (mientras se poblan)
             const phaseName = PHASES[pIdx];
-            const isCert = lIdx === 15;
             return {
-                q: isCert ? `Para certificar la fase de ${phaseName}, ¿cuál es el requisito técnico más importante?` : `En el contexto de ${phaseName}, ¿qué concepto es fundamental para la lección ${lIdx + 1}?`,
-                a: "La optimización sistémica",
-                o: ["La optimización sistémica", "El aumento de temperatura", "Ignorar las leyes físicas", "La redundancia innecesaria"],
-                ok: `¡Excelente! Has comprendido la lógica de ${phaseName}.`,
-                ko: `Incorrecto. En ${phaseName} siempre buscamos la máxima eficiencia.`
+                q: `En el contexto de ${phaseName}, ¿cuál es el principio clave para optimizar el rendimiento en la etapa ${lIdx + 1}?`,
+                a: "Eficiencia sistémica", d: "facil", o: ["Eficiencia sistémica", "Gasto energético", "Complejidad", "Redundancia"],
+                ok: "Análisis correcto.", ko: "Error conceptual."
             };
         }
 
@@ -148,8 +197,16 @@
             PHASES.forEach((name, pIdx) => {
                 const head = document.createElement('div');
                 head.className = "w-full text-center mt-16";
-                head.innerHTML = `<p class="text-blue-500 font-black text-xs uppercase tracking-[0.2em] mb-2">FASE ${pIdx + 1}</p>
-                                  <h3 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">${name.split(': ')[1]}</h3>`;
+                const progress = (state.completed.filter(x => x.startsWith(`f${pIdx}`)).length / 16) * 100;
+                
+                head.innerHTML = `
+                    <div class="flex flex-col items-center mb-4">
+                        <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden mb-2">
+                            <div class="h-full bg-blue-500 transition-all" style="width: ${progress}%"></div>
+                        </div>
+                        <p class="text-blue-500 font-black text-[10px] uppercase tracking-widest">FASE ${pIdx + 1}</p>
+                    </div>
+                    <h3 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">${name.split(': ')[1]}</h3>`;
                 container.appendChild(head);
 
                 for(let lIdx = 0; lIdx < 16; lIdx++) {
@@ -180,7 +237,8 @@
             canvas.width = window.innerWidth;
             canvas.height = document.getElementById('app-container').scrollHeight;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath(); ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 6; ctx.setLineDash([15, 12]);
+            ctx.beginPath(); ctx.strokeStyle = state.xp > 10000 ? "#38bdf8" : "#e2e8f0"; 
+            ctx.lineWidth = 6; ctx.setLineDash([15, 12]);
             const buttons = document.querySelectorAll('#map-content button');
             buttons.forEach((btn, i) => {
                 const rect = btn.getBoundingClientRect();
@@ -192,13 +250,18 @@
         }
 
         function openLesson(pIdx, lIdx, id) {
-            if(state.lives <= 0) return alert("¡Sin vidas! Reinicia el progreso para practicar de nuevo.");
+            if(state.lives <= 0) return alert("¡Sin vidas! Practica para recuperar.");
             const data = getQuestion(pIdx, lIdx);
             active = { id, data, pIdx, lIdx, selected: null, correctIdx: data.o.indexOf(data.a) };
             isEvaluating = false;
 
             document.getElementById('lesson-overlay').classList.remove('hidden');
-            document.getElementById('badge-exam').className = (lIdx === 15) ? "mb-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase" : "hidden";
+            document.getElementById('badge-exam').className = (lIdx === 15) ? "px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase" : "hidden";
+            
+            const dbadge = document.getElementById('diff-badge');
+            dbadge.innerText = data.d;
+            dbadge.className = `px-3 py-1 rounded-full text-[10px] font-black uppercase ${data.d === 'facil' ? 'bg-green-100 text-green-700' : data.d === 'medio' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`;
+
             document.getElementById('phase-label').innerText = PHASES[pIdx];
             document.getElementById('lesson-title').innerText = lIdx === 15 ? "Certificación Final" : `Lección ${lIdx + 1}`;
             document.getElementById('lesson-question').innerText = data.q;
@@ -243,26 +306,34 @@
             feedback.classList.remove('hidden');
             if(isCorrect) {
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.85 } });
+                
                 if(!state.completed.includes(active.id)) {
                     state.completed.push(active.id);
-                    state.xp += (active.lIdx === 15) ? 2000 : 150;
+                    state.xp += rewardXP(active.data.d);
+                    
+                    if(active.lIdx === 15) {
+                        const cert = PHASES[active.pIdx];
+                        if(!state.certificates.includes(cert)) {
+                            state.certificates.push(cert);
+                            alert("🎓 ¡Certificado desbloqueado!: " + cert);
+                        }
+                    }
                 }
+
                 footer.className = "p-8 border-t-2 bg-green-50";
                 document.getElementById('feedback-icon').className = "w-14 h-14 rounded-full flex items-center justify-center bg-green-500 text-white";
                 document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-check"></i>';
-                document.getElementById('feedback-status').innerText = (active.lIdx === 15) ? "¡FASE COMPLETADA!" : "¡Buen trabajo!";
-                document.getElementById('feedback-status').className = "font-black text-xl text-green-700";
+                document.getElementById('feedback-status').innerText = "¡Correcto!";
                 document.getElementById('feedback-msg').innerText = active.data.ok;
                 document.getElementById('lesson-bar').style.width = "100%";
                 btn.className = "btn-push w-full md:w-56 py-4 bg-green-500 border-green-700 text-white rounded-2xl font-black uppercase";
-                btn.innerText = "Siguiente";
+                btn.innerText = "Continuar";
             } else {
                 state.lives--;
                 footer.className = "p-8 border-t-2 bg-rose-50";
                 document.getElementById('feedback-icon').className = "w-14 h-14 rounded-full flex items-center justify-center bg-rose-500 text-white";
                 document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-times"></i>';
-                document.getElementById('feedback-status').innerText = "Incorrecto";
-                document.getElementById('feedback-status').className = "font-black text-xl text-rose-700";
+                document.getElementById('feedback-status').innerText = "Error";
                 document.getElementById('feedback-msg').innerText = active.data.ko;
                 btn.className = "btn-push w-full md:w-56 py-4 bg-rose-500 border-rose-700 text-white rounded-2xl font-black uppercase";
                 btn.innerText = "Entendido";
@@ -271,15 +342,44 @@
             renderMap();
         }
 
-        function closeLesson() { document.getElementById('lesson-overlay').classList.add('hidden'); }
-        function confirmReset() { if(confirm("¿Quieres reiniciar todo tu portafolio y XP?")) { localStorage.removeItem('robo_master_v4'); location.reload(); } }
+        function showCertificates() {
+            const list = document.getElementById('cert-list');
+            list.innerHTML = state.certificates.length === 0 ? "<p class='text-slate-400 text-center py-4'>Aún no tienes certificados.</p>" : "";
+            state.certificates.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-200";
+                div.innerHTML = `<i class="fas fa-graduation-cap text-amber-500"></i> <span class="font-bold text-amber-900">${c}</span>`;
+                list.appendChild(div);
+            });
+            document.getElementById('cert-modal').classList.remove('hidden');
+        }
+
         function updateUI() {
             document.getElementById('stat-xp').innerText = state.xp.toLocaleString();
             document.getElementById('stat-lives').innerText = state.lives;
+            document.getElementById('stat-streak').innerText = state.streak;
             document.getElementById('modal-lives').innerText = state.lives;
             document.getElementById('master-progress').style.width = `${(state.completed.length / 320) * 100}%`;
+
+            // Misión
+            if (state.activeMission) {
+                document.getElementById('mission-panel').classList.remove('hidden');
+                document.getElementById('mission-title').innerText = state.activeMission.title;
+                const donePhases = state.activeMission.phases.filter(p => state.certificates.includes(PHASES[p])).length;
+                document.getElementById('mission-progress').style.width = `${(donePhases / state.activeMission.phases.length) * 100}%`;
+            }
+
+            // Modo Experto
+            if (state.xp >= 10000) {
+                document.getElementById('main-body').classList.add('expert-mode');
+                document.getElementById('badge-expert').classList.remove('hidden');
+            }
         }
-        window.onload = () => { renderMap(); updateUI(); };
+
+        function closeLesson() { document.getElementById('lesson-overlay').classList.add('hidden'); }
+        function confirmReset() { if(confirm("¿Borrar todo?")) { localStorage.removeItem('robo_pro_v5'); location.reload(); } }
+
+        window.onload = () => { checkStreak(); renderMap(); updateUI(); };
         window.onresize = drawPath;
     </script>
 </body>
