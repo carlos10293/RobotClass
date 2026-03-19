@@ -5,14 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ElectroMaster PRO - Engineering Mastery</title>
     
-    <!-- PWA Meta -->
+    <!-- PWA / Mobile Optimizations -->
     <meta name="theme-color" content="#020617">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
@@ -31,108 +30,129 @@
             color: #f8fafc;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
         }
 
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Estilo Duolingo-Pro */
+        /* Mapa de Nodos (Duolingo Style) */
+        .node-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3rem;
+            padding: 2rem 0;
+            position: relative;
+        }
+
         .node {
-            width: 80px;
-            height: 80px;
-            border-radius: 2rem;
+            width: 85px;
+            height: 85px;
+            border-radius: 2.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
             position: relative;
             z-index: 10;
             border-bottom: 6px solid rgba(0,0,0,0.3);
         }
 
         .node:active { transform: translateY(4px); border-bottom-width: 0; }
-
         .node-locked { background: #1e293b; color: #475569; border-color: #0f172a; cursor: not-allowed; }
-        .node-current { background: var(--primary); color: white; border-color: #1d4ed8; box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
+        .node-active { background: var(--primary); color: white; border-color: #1d4ed8; box-shadow: 0 0 25px rgba(59, 130, 246, 0.3); }
         .node-completed { background: var(--success); color: white; border-color: #059669; }
 
-        /* Líneas conectoras */
-        .path-line {
-            position: absolute;
-            width: 4px;
-            background: #1e293b;
-            z-index: 1;
+        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+
+        /* Animaciones de Feedback */
+        @keyframes popUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-pop { animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        .feedback-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            background: rgba(0,0,0,0.4);
         }
 
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+        .feedback-card {
+            background: white;
+            border-radius: 3rem 3rem 0 0;
+            padding: 2.5rem;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+        .feedback-card.active { transform: translateY(0); }
 
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .feedback-panel { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .progress-bar { transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1); }
     </style>
 </head>
-<body class="min-h-screen overflow-x-hidden">
+<body class="min-h-screen">
 
-    <!-- Pantalla de Autenticación -->
-    <div id="auth-view" class="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-6 hidden">
-        <div class="w-full max-w-md space-y-8 text-center">
-            <div class="inline-block p-4 bg-blue-600 rounded-[2rem] shadow-2xl shadow-blue-500/20 mb-4">
-                <i class="fas fa-microchip text-4xl text-white"></i>
-            </div>
-            <h1 class="text-4xl font-black italic uppercase tracking-tighter">ElectroMaster<span class="text-blue-500">PRO</span></h1>
-            <p class="text-slate-400">Ingeniería Electrónica Universitaria</p>
-            
-            <div class="space-y-4 pt-8">
-                <input id="auth-email" type="email" placeholder="Email Institucional" class="w-full bg-slate-900 p-5 rounded-2xl border border-white/10 outline-none focus:border-blue-500 transition-all">
-                <input id="auth-pass" type="password" placeholder="Contraseña" class="w-full bg-slate-900 p-5 rounded-2xl border border-white/10 outline-none focus:border-blue-500 transition-all">
-                <button onclick="actions.login()" class="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase rounded-2xl shadow-lg transition-all active:scale-95">Ingresar al Sistema</button>
-                <div class="flex gap-2">
-                    <button onclick="actions.loginAnon()" class="flex-grow py-3 bg-slate-800 rounded-xl text-xs font-bold uppercase opacity-70">Modo Invitado</button>
-                    <button onclick="actions.register()" class="flex-grow py-3 bg-slate-800 rounded-xl text-xs font-bold uppercase opacity-70">Crear Cuenta</button>
-                </div>
+    <!-- Pantalla de Carga/Auth -->
+    <div id="auth-screen" class="fixed inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center p-8">
+        <div class="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-3xl mb-6 shadow-2xl shadow-blue-500/30">
+            <i class="fas fa-microchip text-white"></i>
+        </div>
+        <h1 class="text-4xl font-black italic tracking-tighter uppercase mb-2">ElectroMaster<span class="text-blue-500 font-black">PRO</span></h1>
+        <p class="text-slate-500 font-bold text-sm uppercase tracking-widest mb-12">Universidad de Ingeniería</p>
+        
+        <div class="w-full max-w-sm space-y-4">
+            <input id="email" type="email" placeholder="Email Institucional" class="w-full bg-slate-900 p-5 rounded-2xl border border-white/5 outline-none focus:border-blue-500">
+            <input id="pass" type="password" placeholder="Contraseña" class="w-full bg-slate-900 p-5 rounded-2xl border border-white/5 outline-none focus:border-blue-500">
+            <button onclick="actions.login()" class="w-full py-5 bg-blue-600 text-white font-black uppercase rounded-2xl shadow-lg active:scale-95 transition-all">Iniciar Sesión</button>
+            <div class="flex gap-2">
+                <button onclick="actions.register()" class="flex-grow py-3 bg-slate-800 rounded-xl text-[10px] font-black uppercase opacity-60">Registrar</button>
+                <button onclick="actions.loginAnon()" class="flex-grow py-3 bg-slate-800 rounded-xl text-[10px] font-black uppercase opacity-60">Invitado</button>
             </div>
         </div>
     </div>
 
-    <!-- UI Principal -->
+    <!-- Main UI -->
     <div id="main-ui" class="hidden">
-        <!-- Header Fijo -->
-        <nav class="fixed top-0 left-0 right-0 z-50 glass px-6 py-4 flex items-center justify-between">
+        <nav class="fixed top-0 inset-x-0 glass z-50 px-6 py-4 flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <button onclick="router.go('dashboard')" class="text-xl font-black italic tracking-tighter">E<span class="text-blue-500">M</span></button>
-                <div class="h-8 w-[1px] bg-white/10 mx-2"></div>
-                <div class="flex items-center gap-2 text-orange-500 font-black">
-                    <i class="fas fa-bolt"></i> <span id="user-xp">0</span>
+                <span class="text-xl font-black italic">E<span class="text-blue-500">M</span></span>
+                <div class="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 text-orange-500 rounded-full text-xs font-black">
+                    <i class="fas fa-fire"></i> <span id="user-streak">1</span>
                 </div>
             </div>
-            <div class="flex items-center gap-4">
-                <div id="nav-streak" class="flex items-center gap-2 text-red-500 font-black">
-                    <i class="fas fa-fire"></i> <span>1</span>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2 text-blue-500 font-black">
+                    <i class="fas fa-bolt"></i> <span id="user-xp">0</span>
                 </div>
-                <button onclick="actions.logout()" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
-                    <i class="fas fa-user text-sm"></i>
-                </button>
+                <button onclick="actions.logout()" class="text-slate-500 hover:text-white"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </nav>
 
-        <!-- Contenedor de Vistas -->
-        <div id="view-container" class="pt-24 pb-32 px-6"></div>
+        <main id="content-area" class="pt-24 pb-32 px-6 max-w-2xl mx-auto"></main>
 
-        <!-- Feedback Overlay (Duo Style) -->
-        <div id="feedback-overlay" class="fixed inset-0 z-[60] bg-black/60 hidden flex flex-col justify-end">
-            <div id="feedback-content" class="w-full p-8 rounded-t-[3rem] feedback-panel">
-                <!-- Contenido dinámico aquí -->
-            </div>
+        <!-- Footer Navegación -->
+        <div class="fixed bottom-0 inset-x-0 glass z-50 px-8 py-4 flex justify-around">
+            <button onclick="router.go('map')" class="text-2xl text-blue-500"><i class="fas fa-map"></i></button>
+            <button onclick="router.go('projects')" class="text-2xl text-slate-500"><i class="fas fa-tools"></i></button>
+            <button onclick="router.go('profile')" class="text-2xl text-slate-500"><i class="fas fa-user-graduate"></i></button>
         </div>
     </div>
 
-    <!-- Script de Datos y Lógica -->
+    <!-- Overlay de Feedback -->
+    <div id="feedback-overlay" class="feedback-overlay hidden">
+        <div id="feedback-card" class="feedback-card">
+            <div id="feedback-inner" class="max-w-xl mx-auto space-y-6"></div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // CONFIGURACIÓN FIREBASE
+        // CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyBUF4X4OvGKdaUOdxtD0Eyj4F1GY-__NOQ",
             authDomain: "electromaster-f2a7a.firebaseapp.com",
@@ -145,276 +165,250 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "electromaster-pro-v1";
+        const APP_ID = "electromaster_pro_v2";
 
-        // CONTENIDO ACADÉMICO (Fases Reales)
-        const CONTENT = [
+        // CONTENIDO ACADÉMICO (10 Módulos de Maestría)
+        const MODULES = [
             {
-                id: 'f1',
-                title: 'Fundamentos DC',
-                icon: 'fa-bolt',
-                levels: [
-                    {
-                        id: 'l1_1',
-                        title: 'Ley de Ohm',
-                        questions: [
-                            {
-                                q: "¿Si aumentamos la resistencia en un circuito manteniendo el voltaje constante, qué sucede con la intensidad?",
-                                o: ["Aumenta proporcionalmente", "Disminuye", "Se mantiene igual"],
-                                a: 1,
-                                explain: "Según la Ley de Ohm ($I = V / R$), la corriente es inversamente proporcional a la resistencia. A mayor oposición, menor flujo de electrones."
-                            },
-                            {
-                                q: "Calcula la potencia disipada por una resistencia de $10\Omega$ con una corriente de $2A$.",
-                                o: ["$20W$", "$40W$", "$5W$"],
-                                a: 1,
-                                explain: "Usamos la fórmula $P = I^2 \cdot R$. Entonces: $2^2 \cdot 10 = 4 \cdot 10 = 40$ Vatios."
-                            }
-                        ]
-                    },
-                    {
-                        id: 'l1_2',
-                        title: 'Leyes de Kirchhoff',
-                        questions: [
-                            {
-                                q: "¿Qué establece la Primera Ley de Kirchhoff (Leyes de Corrientes)?",
-                                o: ["La suma de voltajes es cero", "La suma de corrientes que entran a un nodo es igual a las que salen", "La energía no se crea ni se destruye"],
-                                a: 1,
-                                explain: "Es el principio de conservación de la carga. En un nodo, toda la corriente que llega debe salir por alguna rama."
-                            }
-                        ]
-                    }
-                ]
+                id: 'm1',
+                title: 'Fundamentos de Carga',
+                desc: 'La naturaleza del electrón y Ley de Coulomb',
+                questions: [
+                    { q: "¿Cuál es la carga elemental de un electrón?", o: ["-1.602 x 10^-19 C", "-1.602 x 10^-12 C", "1.602 x 10^-19 C"], a: 0, explain: "La carga elemental es una constante física fundamental. El signo negativo indica la naturaleza del electrón frente al protón." },
+                    { q: "Si duplicamos la distancia entre dos cargas, ¿qué ocurre con la fuerza según Coulomb?", o: ["Se reduce a la mitad", "Se reduce a la cuarta parte", "Se duplica"], a: 1, explain: "La Ley de Coulomb establece que la fuerza es inversamente proporcional al cuadrado de la distancia ($1/d^2$)." }
+                ],
+                project: null
             },
             {
-                id: 'f2',
-                title: 'Semiconductores',
-                icon: 'fa-microchip',
-                levels: [
-                    {
-                        id: 'l2_1',
-                        title: 'Diodos y Rectificación',
-                        questions: [
-                            {
-                                q: "¿Cuál es el voltaje de barrera típico de un diodo de Silicio en polarización directa?",
-                                o: ["$0.3V$", "$0.7V$", "$1.2V$"],
-                                a: 1,
-                                explain: "El Silicio requiere aproximadamente $0.7V$ para vencer la zona de deplexión, mientras que el Germanio requiere $0.3V$."
-                            }
-                        ]
-                    }
-                ]
-            }
+                id: 'm2',
+                title: 'Análisis de Redes DC',
+                desc: 'Leyes de Kirchhoff y Teoremas de Circuitos',
+                questions: [
+                    { q: "En un nodo donde entran 5A y 3A, y sale una sola rama, ¿cuál es la corriente de salida?", o: ["2A", "8A", "15A"], a: 1, explain: "Ley de Corrientes de Kirchhoff (KCL): La suma de corrientes entrantes es igual a la suma de salientes." },
+                    { q: "¿Qué teorema permite simplificar un circuito complejo a una fuente de voltaje y una resistencia en serie?", o: ["Thevenin", "Norton", "Superposición"], a: 0, explain: "El Teorema de Thevenin es vital para analizar cómo una carga interactúa con un sistema complejo." }
+                ],
+                project: { title: "Fuente de Voltaje Variable", parts: ["LM317", "Potenciómetro 5k", "Capacitor 10uF"], steps: "Arma un regulador lineal para alimentar tus futuros proyectos." }
+            },
+            { id: 'm3', title: 'Componentes Pasivos', desc: 'Capacitancia e Inductancia avanzada', questions: [] },
+            { id: 'm4', title: 'Semiconductores I', desc: 'Física de la unión P-N y Diodos', questions: [] },
+            { id: 'm5', title: 'Transistores BJT', desc: 'Amplificación y Conmutación', questions: [] },
+            { id: 'm6', title: 'Transistores MOSFET', desc: 'Control de potencia por voltaje', questions: [] },
+            { id: 'm7', title: 'Amplificadores Op.', desc: 'Comparadores e Integradores', questions: [] },
+            { id: 'm8', title: 'Sistemas Digitales', desc: 'Álgebra de Boole y Compuertas', questions: [] },
+            { id: 'm9', title: 'Microcontroladores', desc: 'Arquitectura Harvard y Registros', questions: [] },
+            { id: 'm10', title: 'Diseño de PCB', desc: 'Ruteo de alta frecuencia y EMI', questions: [] }
         ];
 
-        // ESTADO GLOBAL
+        // Rellenar dinámicamente preguntas faltantes para demo
+        MODULES.forEach(m => {
+            if(m.questions.length === 0) {
+                for(let i=1; i<=15; i++) {
+                    m.questions.push({
+                        q: `Pregunta Técnica ${i} del módulo ${m.title}. ¿Nivel de dificultad?`,
+                        o: ["Bajo", "Medio", "Ingeniería"],
+                        a: 2,
+                        explain: "Esta es una explicación técnica profunda sobre este concepto avanzado de ingeniería."
+                    });
+                }
+            }
+        });
+
+        // ESTADO
         window.state = {
             user: null,
-            activeView: 'dashboard',
-            currentLevel: null,
-            currentQuestionIdx: 0
+            activeView: 'map',
+            currentQuiz: null,
+            quizIdx: 0,
+            
+            async sync() {
+                if(!auth.currentUser) return;
+                const ref = doc(db, 'artifacts', APP_ID, 'users', auth.currentUser.uid, 'profile', 'data');
+                await setDoc(ref, this.user);
+            }
         };
 
         // ACCIONES
         window.actions = {
             async login() {
-                const e = document.getElementById('auth-email').value;
-                const p = document.getElementById('auth-pass').value;
+                const e = document.getElementById('email').value;
+                const p = document.getElementById('pass').value;
                 try { await signInWithEmailAndPassword(auth, e, p); } catch(err) { alert(err.message); }
             },
-            async loginAnon() { try { await signInAnonymously(auth); } catch(err) { alert(err.message); } },
             async register() {
-                const e = document.getElementById('auth-email').value;
-                const p = document.getElementById('auth-pass').value;
+                const e = document.getElementById('email').value;
+                const p = document.getElementById('pass').value;
                 try { await createUserWithEmailAndPassword(auth, e, p); } catch(err) { alert(err.message); }
             },
-            async logout() { await signOut(auth); location.reload(); },
-            
-            async saveProgress() {
-                if (!state.user) return;
-                const userRef = doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'profile', 'data');
-                await updateDoc(userRef, {
-                    xp: state.user.xp,
-                    completed: state.user.completed,
-                    streak: state.user.streak
-                });
-            }
+            async loginAnon() { try { await signInAnonymously(auth); } catch(err) { alert(err.message); } },
+            logout() { signOut(auth); location.reload(); }
         };
 
         // ROUTER
         window.router = {
             go(view, params = null) {
                 state.activeView = view;
-                if (params) state.params = params;
-                render();
-            }
-        };
-
-        // LOGICA DE QUIZ
-        window.quiz = {
-            start(levelId) {
-                let level = null;
-                CONTENT.forEach(f => {
-                    const found = f.levels.find(l => l.id === levelId);
-                    if (found) level = found;
-                });
-                state.currentLevel = level;
-                state.currentQuestionIdx = 0;
-                router.go('quiz');
+                state.params = params;
+                this.render();
             },
+            render() {
+                const area = document.getElementById('content-area');
+                document.getElementById('user-xp').innerText = state.user.xp;
+                document.getElementById('user-streak').innerText = state.user.streak;
 
-            check(idx) {
-                const q = state.currentLevel.questions[state.currentQuestionIdx];
-                const isCorrect = idx === q.a;
-                
-                const overlay = document.getElementById('feedback-overlay');
-                const content = document.getElementById('feedback-content');
-                
-                overlay.classList.remove('hidden');
-                content.className = `w-full p-8 rounded-t-[3rem] feedback-panel ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'}`;
-                
-                content.innerHTML = `
-                    <div class="max-w-md mx-auto space-y-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-2xl">
-                                <i class="fas ${isCorrect ? 'fa-check' : 'fa-times'}"></i>
-                            </div>
-                            <h2 class="text-2xl font-black uppercase italic">${isCorrect ? '¡Excelente Ingeniero!' : 'Error de Sistema'}</h2>
-                        </div>
-                        <div class="bg-black/10 p-4 rounded-2xl">
-                            <p class="text-sm font-semibold mb-1 uppercase opacity-70">Explicación Técnica:</p>
-                            <p class="text-white leading-relaxed">${q.explain}</p>
-                        </div>
-                        <button onclick="quiz.next(${isCorrect})" class="w-full py-4 bg-white ${isCorrect ? 'text-emerald-600' : 'text-rose-600'} font-black uppercase rounded-2xl shadow-xl active:scale-95 transition-all">
-                            Siguiente Pregunta
-                        </button>
-                    </div>
-                `;
-
-                if (isCorrect) {
-                    confetti({ particleCount: 40, spread: 70, origin: { y: 0.9 }, colors: ['#10b981', '#ffffff'] });
-                }
-            },
-
-            async next(wasCorrect) {
-                document.getElementById('feedback-overlay').classList.add('hidden');
-                
-                if (wasCorrect) state.user.xp += 50;
-
-                if (state.currentQuestionIdx + 1 < state.currentLevel.questions.length) {
-                    state.currentQuestionIdx++;
-                    render();
-                } else {
-                    // Nivel terminado
-                    if (!state.user.completed.includes(state.currentLevel.id)) {
-                        state.user.completed.push(state.currentLevel.id);
-                        state.user.xp += 200;
-                    }
-                    await actions.saveProgress();
-                    router.go('dashboard');
-                }
-            }
-        };
-
-        // RENDERIZADO
-        function render() {
-            const container = document.getElementById('view-container');
-            document.getElementById('user-xp').innerText = state.user?.xp || 0;
-
-            if (state.activeView === 'dashboard') {
-                container.innerHTML = `
-                    <div class="space-y-12 max-w-lg mx-auto pb-20">
-                        ${CONTENT.map((phase, pIdx) => `
-                            <div class="space-y-8 relative">
-                                <div class="text-center">
-                                    <h2 class="text-xs font-black text-blue-500 uppercase tracking-[0.3em] mb-2">${phase.title}</h2>
-                                    <div class="h-1 w-12 bg-blue-600 mx-auto rounded-full"></div>
-                                </div>
+                if(state.activeView === 'map') {
+                    area.innerHTML = `
+                        <div class="node-container">
+                            ${MODULES.map((m, i) => {
+                                const isDone = state.user.completed.includes(m.id);
+                                const isLocked = i > 0 && !state.user.completed.includes(MODULES[i-1].id);
+                                const offset = (i % 2 !== 0) ? 'translate-x-12' : '-translate-x-12';
                                 
-                                <div class="flex flex-col items-center gap-12 relative">
-                                    ${phase.levels.map((level, lIdx) => {
-                                        const isDone = state.user.completed.includes(level.id);
-                                        const isLocked = lIdx > 0 && !state.user.completed.includes(phase.levels[lIdx-1].id) && !isDone;
-                                        
-                                        // Zig-zag offset
-                                        const offset = (lIdx % 2 !== 0) ? 'translate-x-12' : '-translate-x-12';
+                                return `
+                                    <div class="relative group ${offset}">
+                                        <div onclick="${isLocked ? '' : `quiz.start('${m.id}')`}" 
+                                             class="node ${isDone ? 'node-completed' : (isLocked ? 'node-locked' : 'node-active')}">
+                                            <i class="fas ${isDone ? 'fa-check' : 'fa-bolt'}"></i>
+                                        </div>
+                                        <div class="absolute top-1/2 left-full ml-6 -translate-y-1/2 w-40">
+                                            <h4 class="text-sm font-black uppercase tracking-tighter ${isLocked ? 'text-slate-600' : 'text-white'}">${m.title}</h4>
+                                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">${m.desc}</p>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
 
-                                        return `
-                                            <div class="relative group ${offset}">
-                                                <div onclick="${isLocked ? '' : `quiz.start('${level.id}')`}" 
-                                                     class="node ${isDone ? 'node-completed' : (isLocked ? 'node-locked' : 'node-current')}">
-                                                    <i class="fas ${isDone ? 'fa-check' : phase.icon}"></i>
-                                                    
-                                                    <!-- Tooltip de Titulo -->
-                                                    <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 px-3 py-1 rounded-lg text-[10px] font-black uppercase whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10">
-                                                        ${level.title}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
+                if(state.activeView === 'quiz') {
+                    const q = state.currentQuiz.questions[state.quizIdx];
+                    area.innerHTML = `
+                        <div class="space-y-8 animate-pop">
+                            <div class="flex items-center gap-4">
+                                <button onclick="router.go('map')" class="text-slate-500"><i class="fas fa-times"></i></button>
+                                <div class="flex-grow h-4 bg-slate-900 rounded-full overflow-hidden p-1">
+                                    <div class="h-full bg-blue-500 rounded-full progress-bar" style="width: ${(state.quizIdx / state.currentQuiz.questions.length) * 100}%"></div>
                                 </div>
                             </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            if (state.activeView === 'quiz') {
-                const q = state.currentLevel.questions[state.currentQuestionIdx];
-                container.innerHTML = `
-                    <div class="max-w-md mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-500">
-                        <div class="space-y-2">
-                            <div class="flex justify-between text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                                <span>Progreso de Fase</span>
-                                <span>${state.currentQuestionIdx + 1} / ${state.currentLevel.questions.length}</span>
-                            </div>
-                            <div class="h-3 w-full bg-slate-900 rounded-full overflow-hidden p-1">
-                                <div class="h-full bg-blue-500 rounded-full transition-all duration-700" style="width: ${((state.currentQuestionIdx + 1) / state.currentLevel.questions.length) * 100}%"></div>
-                            </div>
-                        </div>
-
-                        <div class="glass p-8 rounded-[2.5rem] space-y-6">
-                            <h3 class="text-2xl font-bold leading-snug font-mono">${q.q}</h3>
-                            <div class="space-y-3">
+                            
+                            <h2 class="text-2xl font-black leading-tight">${q.q}</h2>
+                            
+                            <div class="grid gap-3">
                                 ${q.o.map((opt, i) => `
-                                    <button onclick="quiz.check(${i})" class="w-full text-left p-5 rounded-2xl border-2 border-slate-700 hover:border-blue-500 hover:bg-blue-500/5 transition-all font-semibold flex items-center justify-between group active:scale-[0.98]">
+                                    <button onclick="quiz.check(${i})" class="w-full text-left p-6 glass rounded-[2rem] border-2 border-transparent hover:border-blue-500 transition-all font-bold group flex justify-between items-center">
                                         <span>${opt}</span>
-                                        <i class="fas fa-chevron-right text-xs opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all"></i>
+                                        <div class="w-6 h-6 rounded-full border-2 border-slate-700 group-hover:border-blue-500"></div>
                                     </button>
                                 `).join('')}
                             </div>
                         </div>
-                        
-                        <button onclick="router.go('dashboard')" class="w-full py-4 text-slate-500 font-bold uppercase text-xs tracking-widest hover:text-white transition-colors">
-                            Abandonar Protocolo
-                        </button>
-                    </div>
-                `;
+                    `;
+                }
+
+                if(state.activeView === 'projects') {
+                    area.innerHTML = `
+                        <div class="space-y-6">
+                            <h2 class="text-3xl font-black italic uppercase">Laboratorio Físico</h2>
+                            ${MODULES.filter(m => m.project).map(m => `
+                                <div class="glass p-6 rounded-[2.5rem] space-y-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest">Proyecto Nivel ${m.id.replace('m','')}</span>
+                                            <h3 class="text-xl font-bold">${m.project.title}</h3>
+                                        </div>
+                                        <div class="p-3 bg-blue-600/20 text-blue-500 rounded-2xl"><i class="fas fa-microchip"></i></div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${m.project.parts.map(p => `<span class="px-3 py-1 bg-slate-800 rounded-lg text-[10px] font-bold text-slate-400">${p}</span>`).join('')}
+                                    </div>
+                                    <p class="text-sm text-slate-300 italic">"${m.project.steps}"</p>
+                                    <button class="w-full py-3 bg-slate-800 rounded-xl text-xs font-black uppercase">Ver Diagrama Completo</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
             }
-        }
+        };
+
+        // LÓGICA DE QUIZ
+        window.quiz = {
+            start(id) {
+                state.currentQuiz = MODULES.find(m => m.id === id);
+                state.quizIdx = 0;
+                router.go('quiz');
+            },
+            check(idx) {
+                const q = state.currentQuiz.questions[state.quizIdx];
+                const isCorrect = idx === q.a;
+                
+                const overlay = document.getElementById('feedback-overlay');
+                const card = document.getElementById('feedback-card');
+                const inner = document.getElementById('feedback-inner');
+                
+                overlay.classList.remove('hidden');
+                setTimeout(() => card.classList.add('active'), 10);
+                
+                inner.innerHTML = `
+                    <div class="flex items-center gap-4 ${isCorrect ? 'text-emerald-600' : 'text-rose-600'}">
+                        <i class="fas ${isCorrect ? 'fa-check-circle' : 'fa-times-circle'} text-4xl"></i>
+                        <h2 class="text-3xl font-black uppercase italic">${isCorrect ? '¡Correcto!' : 'Error de Análisis'}</h2>
+                    </div>
+                    <div class="bg-slate-100 p-6 rounded-[2rem] text-slate-700">
+                        <p class="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Fundamento Técnico:</p>
+                        <p class="font-medium leading-relaxed">${q.explain}</p>
+                    </div>
+                    <button onclick="quiz.next(${isCorrect})" class="w-full py-5 ${isCorrect ? 'bg-emerald-600' : 'bg-rose-600'} text-white font-black uppercase rounded-2xl shadow-xl">
+                        Continuar
+                    </button>
+                `;
+
+                if(isCorrect) {
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
+                }
+            },
+            async next(wasCorrect) {
+                const card = document.getElementById('feedback-card');
+                card.classList.remove('active');
+                setTimeout(() => document.getElementById('feedback-overlay').classList.add('hidden'), 400);
+
+                if(wasCorrect) state.user.xp += 100;
+                
+                if(state.quizIdx + 1 < state.currentQuiz.questions.length) {
+                    state.quizIdx++;
+                    router.render();
+                } else {
+                    if(!state.user.completed.includes(state.currentQuiz.id)) {
+                        state.user.completed.push(state.currentQuiz.id);
+                        state.user.xp += 500;
+                    }
+                    await state.sync();
+                    router.go('map');
+                }
+            }
+        };
 
         // AUTH LISTENER
         onAuthStateChanged(auth, async (user) => {
-            const authView = document.getElementById('auth-view');
+            const authScreen = document.getElementById('auth-screen');
             const mainUI = document.getElementById('main-ui');
-
-            if (user) {
-                authView.classList.add('hidden');
-                mainUI.classList.remove('hidden');
+            
+            if(user) {
+                const ref = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'data');
+                const snap = await getDoc(ref);
                 
-                const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-                const snap = await getDoc(userRef);
-                
-                if (snap.exists()) {
+                if(snap.exists()) {
                     state.user = snap.data();
                 } else {
                     state.user = { xp: 0, completed: [], streak: 1, name: user.email?.split('@')[0] || 'Ingeniero' };
-                    await setDoc(userRef, state.user);
+                    await setDoc(ref, state.user);
                 }
-                render();
+                
+                authScreen.classList.add('hidden');
+                mainUI.classList.remove('hidden');
+                router.render();
             } else {
-                authView.classList.remove('hidden');
+                authScreen.classList.remove('hidden');
                 mainUI.classList.add('hidden');
             }
         });
