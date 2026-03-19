@@ -1,168 +1,335 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElectroMaster - Segmentación de Clientes</title>
+    <title>ElectroMaster - Certificación Profesional</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+    <!-- Para generar el PDF del certificado -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap');
+        :root { --primary: #2563eb; --bg-dark: #0f172a; --panel: #1e293b; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: white; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
         
-        body {
-            font-family: 'Nunito', sans-serif;
-            background-color: #f9fafb;
-            color: #374151;
-            overflow-x: hidden;
+        .node-container { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 40px 0; }
+        .node { 
+            width: 80px; height: 75px; border-radius: 20px; display: flex; align-items: center; 
+            justify-content: center; font-size: 1.5rem; cursor: pointer; position: relative; 
+            transition: all 0.2s; z-index: 10; border: 2px solid #334155;
         }
+        .completed { background: #2563eb; border-color: #3b82f6; color: white; box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); }
+        .current { background: #ffffff; border-color: #ffffff; color: #0f172a; animation: pulse 2s infinite; }
+        .locked { background: #1e293b; color: #475569; cursor: not-allowed; }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { box-shadow: 0 0 0 15px rgba(255,255,255,0); } 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
 
-        .duo-card {
-            border: 2px solid #e5e7eb;
-            border-bottom: 6px solid #e5e7eb;
-            transition: all 0.15s ease;
-        }
+        .connector { position: absolute; width: 4px; background: #334155; z-index: 1; }
+        .connector.active { background: #2563eb; }
 
-        .duo-card:active {
-            border-bottom-width: 2px;
-            transform: translateY(4px);
-        }
+        .screen { display: none; min-height: 100vh; animation: fadeIn 0.3s ease-out; }
+        .active-screen { display: flex; flex-direction: column; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .onboarding-screen {
-            animation: fadeIn 0.4s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .node-btn {
-            width: 80px; height: 75px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; color: white;
-            cursor: pointer; position: relative;
-            margin-bottom: 30px;
-        }
-        .current { background: #58cc02; border-bottom: 6px solid #46a302; }
-        .locked { background: #e5e7eb; border-bottom: 6px solid #d1d5db; }
+        .btn-premium { background: linear-gradient(135deg, #2563eb, #7c3aed); border-radius: 12px; transition: transform 0.2s; }
+        .btn-premium:active { transform: scale(0.98); }
     </style>
 </head>
-<body>
+<body class="bg-slate-950">
 
-    <!-- Pantalla de Selección de Cliente (Onboarding) -->
-    <div id="onboarding" class="fixed inset-0 bg-white z-[200] flex flex-col items-center justify-center p-6 text-center">
-        <div class="mb-8">
-            <div class="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center text-white text-4xl mx-auto shadow-xl mb-4">
-                <i class="fas fa-bolt"></i>
+    <!-- Header Profesional -->
+    <nav class="fixed top-0 w-full bg-slate-900/80 backdrop-blur-md border-b border-slate-800 z-50 px-6 py-4">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-microchip text-blue-500 text-2xl"></i>
+                <h1 class="font-bold text-xl tracking-tight uppercase text-slate-100">ElectroMaster <span class="text-blue-500 text-xs align-top">STPS READY</span></h1>
             </div>
-            <h1 class="text-3xl font-black text-gray-800">¡Bienvenido a ElectroMaster!</h1>
-            <p class="text-gray-500 font-bold mt-2">¿Cómo planeas usar la plataforma hoy?</p>
-        </div>
-
-        <div class="grid w-full max-w-sm gap-4">
-            <!-- Opción: Personas -->
-            <button onclick="app.setRole('user')" class="duo-card p-6 rounded-3xl flex items-center gap-4 hover:bg-blue-50 border-blue-100 group">
-                <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <i class="fas fa-user"></i>
-                </div>
-                <div class="text-left">
-                    <h3 class="font-black text-lg">Soy Estudiante</h3>
-                    <p class="text-xs font-bold text-gray-400 leading-none">Quiero certificarme y ganar más.</p>
-                </div>
-            </button>
-
-            <!-- Opción: Empresas -->
-            <button onclick="app.setRole('business')" class="duo-card p-6 rounded-3xl flex items-center gap-4 hover:bg-indigo-50 border-indigo-100 group">
-                <div class="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                    <i class="fas fa-building"></i>
-                </div>
-                <div class="text-left">
-                    <h3 class="font-black text-lg">Soy Empresa</h3>
-                    <p class="text-xs font-bold text-gray-400 leading-none">Capacitar a mi equipo técnico.</p>
-                </div>
-            </button>
-        </div>
-        
-        <p class="mt-10 text-[10px] font-black text-gray-300 uppercase tracking-widest">Startup de Impacto Social Certificada</p>
-    </div>
-
-    <!-- App Principal -->
-    <nav class="fixed top-0 w-full bg-white border-b-2 border-gray-100 z-50 px-4 py-3 hidden" id="main-nav">
-        <div class="max-w-xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <span id="role-icon" class="text-blue-600"><i class="fas fa-user"></i></span>
-                <h1 class="font-black text-lg leading-none" id="app-title">ElectroMaster</h1>
-            </div>
-            <div class="flex gap-4 font-black">
-                <span class="text-orange-500"><i class="fas fa-fire"></i> 1</span>
-                <span class="text-blue-500"><i class="fas fa-gem"></i> 0</span>
+            <div id="user-stats" class="hidden sm:flex gap-6 text-xs font-semibold text-slate-400">
+                <span>MODULOS: <span id="stat-progress" class="text-white">0/7</span></span>
+                <span>PUNTUACIÓN: <span id="stat-score" class="text-white">0</span></span>
             </div>
         </div>
     </nav>
 
-    <main id="main-content" class="pt-24 pb-12 px-4 max-w-xl mx-auto hidden">
-        <div id="banner-role" class="p-6 rounded-3xl mb-8 border-2">
-            <!-- Se llena dinámicamente -->
-        </div>
+    <!-- PANTALLA: MAPA -->
+    <section id="screen-map" class="screen active-screen pt-24 pb-32">
+        <div class="max-w-xl mx-auto w-full px-6">
+            <div class="bg-slate-900 border border-slate-800 p-8 rounded-3xl mb-12 shadow-2xl">
+                <h2 class="text-2xl font-extrabold mb-2">Formación en Ingeniería</h2>
+                <p class="text-slate-400 text-sm mb-6">Curso gratuito. Certificación con validez curricular disponible al finalizar todos los módulos.</p>
+                <div class="flex items-center gap-2 text-xs font-bold text-blue-400 bg-blue-500/10 w-fit px-3 py-1 rounded-full">
+                    <i class="fas fa-shield-halved"></i> PROTOCOLO DE EVALUACIÓN PROFESIONAL
+                </div>
+            </div>
 
-        <div id="map" class="flex flex-col items-center">
-            <!-- Mapa de niveles -->
+            <div id="path-container" class="node-container"></div>
         </div>
-    </main>
+    </section>
 
+    <!-- PANTALLA: EVALUACIÓN -->
+    <section id="screen-quiz" class="screen fixed inset-0 bg-slate-950 z-[100] p-6 flex-col">
+        <div class="max-w-2xl mx-auto w-full flex flex-col h-full">
+            <div class="flex items-center justify-between mb-12">
+                <button onclick="ui.goTo('map')" class="text-slate-400 hover:text-white"><i class="fas fa-arrow-left mr-2"></i> Salir</button>
+                <div class="flex-1 mx-8 h-2 bg-slate-800 rounded-full">
+                    <div id="quiz-progress" class="h-full bg-blue-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <span id="quiz-count" class="text-xs font-mono text-slate-500">01/10</span>
+            </div>
+
+            <div class="flex-1">
+                <h2 id="q-text" class="text-2xl font-semibold mb-8 text-slate-100 leading-relaxed"></h2>
+                <div id="q-options" class="grid gap-3"></div>
+            </div>
+
+            <div id="feedback-area" class="h-24 flex items-center mb-4">
+                <div id="feedback-msg" class="hidden w-full p-4 rounded-xl flex items-center gap-3">
+                    <i id="f-icon" class="fas"></i>
+                    <p id="f-body" class="text-sm font-medium"></p>
+                </div>
+            </div>
+
+            <button id="btn-next" class="w-full py-4 rounded-xl font-bold bg-slate-800 text-slate-400 transition-all uppercase tracking-widest text-sm">
+                Seleccione una opción
+            </button>
+        </div>
+    </section>
+
+    <!-- PANTALLA: CERTIFICADO / PAGO -->
+    <section id="screen-cert" class="screen fixed inset-0 bg-slate-950 z-[110] p-6 flex-col items-center justify-center text-center">
+        <div class="max-w-md bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl">
+            <div class="w-20 h-20 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+                <i class="fas fa-award"></i>
+            </div>
+            <h2 class="text-3xl font-bold mb-4">¡Curso Completado!</h2>
+            <p class="text-slate-400 mb-8">Has demostrado los conocimientos necesarios en las 7 áreas críticas de la electrónica.</p>
+            
+            <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 mb-8 text-left">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-slate-400">Emisión de Certificado:</span>
+                    <span class="font-bold text-white">$100.00 MXN</span>
+                </div>
+                <p class="text-[10px] text-slate-500 uppercase tracking-tighter">Incluye folio único de validación y espacio para registro STPS.</p>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <button onclick="logic.processPayment()" class="w-full py-4 btn-premium text-white font-bold shadow-lg shadow-blue-500/20">
+                    OBTENER CERTIFICADO OFICIAL
+                </button>
+                <button onclick="ui.goTo('map')" class="text-slate-500 text-sm font-semibold py-2">Volver al inicio (Gratis)</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Script de Datos y Lógica -->
     <script>
-        const app = {
-            setRole(role) {
-                document.getElementById('onboarding').classList.add('hidden');
-                document.getElementById('main-nav').classList.remove('hidden');
-                document.getElementById('main-content').classList.remove('hidden');
-                
-                const banner = document.getElementById('banner-role');
-                const title = document.getElementById('app-title');
-                const icon = document.getElementById('role-icon');
+        const CURRICULUM = [
+            { id: 'c1', title: 'Fundamentos de Electricidad', icon: 'bolt', questions: [
+                { q: "¿Qué ley establece que la corriente es proporcional al voltaje e inversamente proporcional a la resistencia?", a: ["Ley de Watt", "Ley de Kirchhoff", "Ley de Ohm", "Teorema de Norton"], c: 2, exp: "V = I * R. Fundamental para todo cálculo electrónico." }
+            ]},
+            { id: 'c2', title: 'Componentes Pasivos y CA', icon: 'wave-square', questions: [
+                { q: "¿En qué unidad se mide la capacidad de un condensador?", a: ["Henrios", "Faradios", "Ohmios", "Siemens"], c: 1, exp: "El Faradio (F) mide la capacidad de almacenar carga eléctrica." }
+            ]},
+            { id: 'c3', title: 'Electrónica Analógica', icon: 'microchip', questions: [
+                { q: "¿Cuál es la función de un transistor operando en zona de saturación?", a: ["Amplificador lineal", "Interruptor cerrado", "Resistencia variable", "Aislante"], c: 1, exp: "En saturación, el transistor permite el paso máximo de corriente (On)." }
+            ]},
+            { id: 'c4', title: 'Electrónica Digital', icon: 'binary', questions: [
+                { q: "¿Cuál es el equivalente decimal del binario 1010?", a: ["8", "12", "10", "14"], c: 2, exp: "(1*8)+(0*4)+(1*2)+(0*1) = 10." }
+            ]},
+            { id: 'c5', title: 'Microcontroladores', icon: 'brain', questions: [
+                { q: "¿Qué protocolo de comunicación usa solo dos hilos (SDA y SCL)?", a: ["UART", "SPI", "I2C", "CAN Bus"], c: 2, exp: "I2C es ideal para conectar múltiples periféricos con pocos cables." }
+            ]},
+            { id: 'c6', title: 'Potencia e Instrumentación', icon: 'plug', questions: [
+                { q: "¿Qué herramienta se usa para visualizar señales eléctricas en el tiempo?", a: ["Multímetro", "Osciloscopio", "Generador de funciones", "Wattmetro"], c: 1, exp: "El osciloscopio permite ver amplitud, frecuencia y forma de onda." }
+            ]},
+            { id: 'c7', title: 'Diseño y Fabricación PCB', icon: 'project-diagram', questions: [
+                { q: "¿Qué significa SMD en el contexto de fabricación?", a: ["Sistema de Mando Digital", "Surface Mount Device", "Soldadura Muy Dura", "Simple Mode Design"], c: 1, exp: "Componentes de montaje superficial, estándar en la industria actual." }
+            ]}
+        ];
 
-                if(role === 'user') {
-                    banner.className = "p-6 rounded-3xl mb-8 border-2 border-blue-100 bg-blue-50";
-                    banner.innerHTML = `
-                        <h2 class="font-black text-blue-800 text-lg">Ruta de Empleabilidad</h2>
-                        <p class="text-sm font-bold text-blue-600">Completa los 5 módulos para obtener tu certificado DC-3 avalado por la STPS.</p>
-                    `;
-                    title.innerText = "Mi Carrera";
-                    icon.innerHTML = '<i class="fas fa-user"></i>';
-                } else {
-                    banner.className = "p-6 rounded-3xl mb-8 border-2 border-indigo-100 bg-indigo-50";
-                    banner.innerHTML = `
-                        <h2 class="font-black text-indigo-800 text-lg">Panel Corporativo</h2>
-                        <p class="text-sm font-bold text-indigo-600">Gestiona las licencias de tu personal y monitorea su progreso técnico.</p>
-                    `;
-                    title.innerText = "Electro Master B2B";
-                    icon.innerHTML = '<i class="fas fa-building"></i>';
-                }
-                this.renderMap();
+        const state = {
+            xp: 0,
+            completed: JSON.parse(localStorage.getItem('em_pro_completed')) || [],
+            currentLevel: null,
+            qIndex: 0,
+            
+            save() { localStorage.setItem('em_pro_completed', JSON.stringify(this.completed)); }
+        };
+
+        const ui = {
+            goTo(screenId) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+                document.getElementById(`screen-${screenId}`).classList.add('active-screen');
+                if(screenId === 'map') this.renderMap();
             },
 
             renderMap() {
-                const map = document.getElementById('map');
-                map.innerHTML = '';
-                const levels = ['Introducción', 'Seguridad', 'Motores', 'PLC Básico', 'Examen Final'];
-                levels.forEach((l, i) => {
+                const container = document.getElementById('path-container');
+                container.innerHTML = '';
+                state.completed = JSON.parse(localStorage.getItem('em_pro_completed')) || [];
+                
+                document.getElementById('stat-progress').innerText = `${state.completed.length}/7`;
+                
+                CURRICULUM.forEach((level, i) => {
+                    const isDone = state.completed.includes(level.id);
+                    const isLocked = i > 0 && !state.completed.includes(CURRICULUM[i-1].id);
+                    const isCurrent = !isDone && !isLocked;
+
+                    if(i < CURRICULUM.length - 1) {
+                        const line = document.createElement('div');
+                        line.className = `connector ${isDone ? 'active' : ''}`;
+                        line.style.height = '100px';
+                        line.style.top = `${i * 120 + 60}px`;
+                        container.appendChild(line);
+                    }
+
                     const node = document.createElement('div');
-                    node.className = `node-btn ${i === 0 ? 'current' : 'locked'}`;
-                    node.style.left = `${Math.sin(i) * 50}px`;
-                    node.innerHTML = i === 0 ? '<i class="fas fa-play"></i>' : '<i class="fas fa-lock"></i>';
+                    node.className = `node ${isDone ? 'completed' : (isCurrent ? 'current' : 'locked')}`;
+                    node.style.marginTop = i === 0 ? '0' : '45px';
+                    node.style.left = `${Math.sin(i * 2) * 40}px`;
+                    node.innerHTML = isDone ? '<i class="fas fa-check-circle"></i>' : `<i class="fas fa-${level.icon}"></i>`;
                     
+                    if(!isLocked) node.onclick = () => logic.startLevel(level);
+
                     const label = document.createElement('div');
-                    label.className = "absolute -bottom-6 font-black text-[10px] text-gray-400 uppercase tracking-tighter whitespace-nowrap";
-                    label.innerText = l;
+                    label.className = "absolute -bottom-8 font-bold text-[9px] uppercase tracking-widest text-slate-500 whitespace-nowrap";
+                    label.innerText = level.title;
                     node.appendChild(label);
-                    
-                    map.appendChild(node);
+                    container.appendChild(node);
                 });
+
+                if(state.completed.length === 7) {
+                    setTimeout(() => this.goTo('cert'), 1000);
+                }
             }
         };
+
+        const logic = {
+            startLevel(level) {
+                state.currentLevel = level;
+                state.qIndex = 0;
+                ui.goTo('quiz');
+                this.renderQuestion();
+            },
+
+            renderQuestion() {
+                const q = state.currentLevel.questions[state.qIndex];
+                document.getElementById('q-text').innerText = q.q;
+                document.getElementById('quiz-count').innerText = `${String(state.qIndex + 1).padStart(2, '0')}/${state.currentLevel.questions.length}`;
+                document.getElementById('quiz-progress').style.width = `${((state.qIndex) / state.currentLevel.questions.length) * 100}%`;
+                
+                const opts = document.getElementById('q-options');
+                opts.innerHTML = '';
+                q.a.forEach((opt, i) => {
+                    const b = document.createElement('button');
+                    b.className = "w-full p-5 rounded-xl border border-slate-800 bg-slate-900 text-left font-semibold text-slate-300 hover:border-blue-500 transition-all active:scale-[0.99]";
+                    b.innerText = opt;
+                    b.onclick = () => this.checkAnswer(i, b);
+                    opts.appendChild(b);
+                });
+
+                document.getElementById('btn-next').className = "w-full py-4 rounded-xl font-bold bg-slate-800 text-slate-500 uppercase tracking-widest text-sm";
+                document.getElementById('btn-next').innerText = "Seleccione una opción";
+                document.getElementById('feedback-msg').className = "hidden";
+            },
+
+            checkAnswer(idx, btn) {
+                const q = state.currentLevel.questions[state.qIndex];
+                const isCorrect = idx === q.c;
+                const feedback = document.getElementById('feedback-msg');
+                const nextBtn = document.getElementById('btn-next');
+
+                feedback.classList.remove('hidden');
+                if(isCorrect) {
+                    feedback.className = "w-full p-4 rounded-xl flex items-center gap-3 bg-blue-500/10 text-blue-400 border border-blue-500/20";
+                    document.getElementById('f-icon').className = "fas fa-check-circle";
+                    document.getElementById('f-title'); // dummy
+                    nextBtn.className = "w-full py-4 rounded-xl font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/20 uppercase tracking-widest text-sm";
+                } else {
+                    feedback.className = "w-full p-4 rounded-xl flex items-center gap-3 bg-red-500/10 text-red-400 border border-red-500/20";
+                    document.getElementById('f-icon').className = "fas fa-exclamation-triangle";
+                    nextBtn.className = "w-full py-4 rounded-xl font-bold bg-red-600 text-white uppercase tracking-widest text-sm";
+                }
+                document.getElementById('f-body').innerText = q.exp;
+                nextBtn.innerText = "Continuar";
+                nextBtn.onclick = () => this.next();
+            },
+
+            next() {
+                state.qIndex++;
+                if(state.qIndex >= state.currentLevel.questions.length) {
+                    if(!state.completed.includes(state.currentLevel.id)) {
+                        state.completed.push(state.currentLevel.id);
+                        state.save();
+                    }
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
+                    ui.goTo('map');
+                } else {
+                    this.renderQuestion();
+                }
+            },
+
+            processPayment() {
+                // Simulación de pasarela de pago
+                const name = prompt("Ingrese su nombre completo para el certificado:");
+                if(!name) return;
+                
+                alert("Redirigiendo a pasarela de pago ($100 MXN)... \n(Simulación: Pago exitoso)");
+                this.generatePDF(name);
+            },
+
+            generatePDF(userName) {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                const blue = [37, 99, 235];
+
+                // Fondo y Bordes
+                doc.setFillColor(15, 23, 42);
+                doc.rect(0, 0, 297, 210, 'F');
+                doc.setDrawColor(blue[0], blue[1], blue[2]);
+                doc.setLineWidth(1.5);
+                doc.rect(10, 10, 277, 190);
+                
+                // Textos
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(35);
+                doc.text("CERTIFICADO DE COMPETENCIA", 148, 50, null, null, "center");
+                
+                doc.setFontSize(15);
+                doc.setTextColor(148, 163, 184);
+                doc.text("ESTE DOCUMENTO RECONOCE QUE", 148, 75, null, null, "center");
+                
+                doc.setFontSize(45);
+                doc.setTextColor(blue[0], blue[1], blue[2]);
+                doc.text(userName.toUpperCase(), 148, 105, null, null, "center");
+                
+                doc.setFontSize(15);
+                doc.setTextColor(148, 163, 184);
+                doc.text("HA COMPLETADO CON ÉXITO EL PROGRAMA MAESTRO DE", 148, 125, null, null, "center");
+                
+                doc.setFontSize(22);
+                doc.setTextColor(255, 255, 255);
+                doc.text("INGENIERÍA ELECTRÓNICA Y DISEÑO DE SISTEMAS", 148, 140, null, null, "center");
+                
+                // Footer / Folio
+                doc.setFontSize(10);
+                doc.setTextColor(71, 85, 105);
+                const folio = "EM-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+                doc.text(`FOLIO DE VALIDACIÓN: ${folio} | FECHA: ${new Date().toLocaleDateString()}`, 148, 175, null, null, "center");
+                
+                // Espacio STPS (Placeholder)
+                doc.setDrawColor(71, 85, 105);
+                doc.rect(220, 155, 40, 30);
+                doc.setFontSize(8);
+                doc.text("SELLO / REGISTRO\nSTPS PENDING", 240, 170, null, null, "center");
+
+                doc.save(`Certificado_ElectroMaster_${userName}.pdf`);
+            }
+        };
+
+        window.onload = () => ui.renderMap();
     </script>
 </body>
 </html>
