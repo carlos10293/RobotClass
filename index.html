@@ -1,386 +1,284 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoboClass - Ingeniería y Certificación</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ElectroMaster University - PRO</title>
+    
+    <!-- PWA Meta -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=JetBrains+Mono&display=swap');
-        body { font-family: 'Nunito', sans-serif; background-color: #f8fafc; user-select: none; overflow-x: hidden; }
-        .btn-push { transition: all 0.1s; border-bottom: 4px solid; }
-        .btn-push:active { transform: translateY(4px); border-bottom-width: 0px; margin-bottom: 4px; }
-        .node-completed { background: #58cc02; border-color: #46a302; color: white; }
-        .node-current { background: #1cb0f6; border-color: #1899d6; color: white; animation: pulse 2s infinite; }
-        .node-locked { background: #e5e7eb; border-color: #d1d5db; color: #afafaf; }
-        .node-cert { border-color: #ffc107; background: #fff3cd; color: #856404; }
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 176, 246, 0.4); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(28, 176, 246, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 176, 246, 0); }
-        }
-        #path-canvas { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; opacity: 0.15; }
-        .option-btn { transition: all 0.2s; border: 2px solid #e5e7eb; border-bottom-width: 4px; }
-        .option-selected { border-color: #84d8ff; background-color: #ddf4ff; color: #1899d6; }
-        .option-correct { border-color: #58cc02; background-color: #d7ffb8; color: #46a302; }
-        .option-wrong { border-color: #ea2b2b; background-color: #ffdfe0; color: #ea2b2b; }
-        .expert-mode { background-color: #0f172a !important; color: #38bdf8 !important; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=JetBrains+Mono&display=swap');
+        
+        :root { --primary: #3b82f6; --bg: #020617; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        
+        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+        .btn-push { transition: all 0.1s; border-bottom: 4px solid rgba(0,0,0,0.3); }
+        .btn-push:active { transform: translateY(2px); border-bottom-width: 0; margin-bottom: 4px; }
+        
+        .progress-fill { transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1); }
+        
+        @keyframes pulse-blue { 0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); } 50% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); } }
+        .node-current { animation: pulse-blue 2s infinite; }
     </style>
 </head>
-<body id="main-body">
+<body class="min-h-screen">
 
-    <nav class="fixed top-0 left-0 w-full bg-white border-b-2 border-slate-200 z-50 h-16 flex items-center justify-between px-6">
-        <div class="flex items-center gap-2">
-            <span class="text-2xl font-black text-blue-600 tracking-tighter">ROBOCLASS</span>
-            <span id="badge-expert" class="hidden bg-slate-800 text-sky-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-sky-400">Expert</span>
-        </div>
-        <div class="flex items-center gap-6 font-bold text-slate-600">
-            <div class="flex items-center gap-2 text-orange-500" title="Racha diaria">
-                <i class="fas fa-fire"></i> <span id="stat-streak">0</span>
-            </div>
-            <div class="flex items-center gap-2 text-blue-500" title="Experiencia">
-                <i class="fas fa-bolt"></i> <span id="stat-xp">0</span>
-            </div>
-            <div class="flex items-center gap-2 text-rose-500" title="Vidas">
-                <i class="fas fa-heart"></i> <span id="stat-lives">5</span>
-            </div>
-            <button onclick="showCertificates()"><i class="fas fa-award text-amber-500 text-xl"></i></button>
-        </div>
-    </nav>
-
-    <div class="fixed top-16 left-0 w-full bg-white h-1.5 z-40">
-        <div id="master-progress" class="h-full bg-green-500 transition-all duration-1000" style="width: 0%"></div>
-    </div>
-
-    <!-- Misión Activa -->
-    <div id="mission-panel" class="fixed bottom-6 left-6 z-40 bg-white p-4 rounded-2xl shadow-2xl border-2 border-slate-200 max-w-xs hidden">
-        <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Misión Activa</p>
-        <h4 id="mission-title" class="font-bold text-slate-800 leading-tight">Construir Seguidor de Línea</h4>
-        <div class="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div id="mission-progress" class="h-full bg-blue-500 w-0 transition-all"></div>
-        </div>
-    </div>
-
-    <main id="app-container" class="relative pt-24 pb-40 flex flex-col items-center min-h-screen">
-        <canvas id="path-canvas"></canvas>
-        <div id="map-content" class="w-full max-w-xl flex flex-col items-center gap-12 relative px-4"></div>
-    </main>
-
-    <!-- Modal de Lección -->
-    <div id="lesson-overlay" class="fixed inset-0 bg-white z-[100] hidden flex flex-col">
-        <div class="h-16 border-b-2 flex items-center justify-between px-6">
-            <button onclick="closeLesson()"><i class="fas fa-times text-2xl text-slate-400"></i></button>
-            <div class="flex-1 mx-8 h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div id="lesson-bar" class="h-full bg-green-500 w-0 transition-all duration-500"></div>
-            </div>
-            <div class="text-rose-500 font-bold"><i class="fas fa-heart"></i> <span id="modal-lives">5</span></div>
-        </div>
-        <div class="flex-1 overflow-y-auto p-6 md:p-12">
-            <div class="max-w-2xl mx-auto">
-                <div class="flex items-center gap-3 mb-4">
-                    <div id="badge-exam" class="hidden px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase">
-                        <i class="fas fa-graduation-cap"></i> Examen
-                    </div>
-                    <div id="diff-badge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase"></div>
+    <div id="app-shell" class="hidden">
+        <!-- Navegación Superior -->
+        <nav class="sticky top-0 z-50 glass px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black shadow-lg shadow-blue-500/20">E</div>
+                <div class="hidden md:block">
+                    <h1 class="text-sm font-black tracking-tighter italic">ELECTROMASTER <span class="text-blue-500 text-xs">PRO</span></h1>
                 </div>
-                <h4 id="phase-label" class="text-blue-500 font-black uppercase text-xs tracking-widest mb-2"></h4>
-                <h2 id="lesson-title" class="text-3xl font-black text-slate-800 mb-8 leading-tight"></h2>
-                <div id="q-container" class="bg-white border-2 border-slate-200 rounded-3xl p-8 mb-8 shadow-sm">
-                    <p id="lesson-question" class="text-xl font-bold text-slate-700 leading-relaxed"></p>
-                </div>
-                <div id="options-grid" class="grid gap-4"></div>
             </div>
-        </div>
-        <div id="footer-feedback" class="p-8 border-t-2 bg-white transition-all">
-            <div class="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-                <div id="feedback-text" class="hidden flex items-center gap-4 flex-1">
-                    <div id="feedback-icon" class="w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl"></div>
-                    <div>
-                        <p id="feedback-status" class="font-black text-xl"></p>
-                        <p id="feedback-msg" class="text-slate-600 font-bold text-sm"></p>
-                    </div>
+            
+            <div class="flex-grow max-w-xs mx-4 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="global-progress" class="h-full bg-blue-500 progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1.5 text-orange-500 font-bold text-sm">
+                    <i class="fas fa-fire"></i> <span id="stat-streak">0</span>
                 </div>
-                <button id="action-btn" onclick="checkAnswer()" class="btn-push w-full md:w-56 py-4 bg-blue-500 border-blue-700 text-white rounded-2xl font-black uppercase tracking-widest">Comprobar</button>
+                <button onclick="authActions.logout()" class="text-slate-400 hover:text-white p-2">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </nav>
+
+        <main id="main-view" class="p-4 max-w-4xl mx-auto pb-24"></main>
+    </div>
+
+    <!-- Pantalla de Carga/Login -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-slate-950">
+        <div class="w-full max-w-md glass p-8 rounded-[2.5rem] text-center space-y-8">
+            <div>
+                <i class="fas fa-microchip text-5xl text-blue-500 mb-4"></i>
+                <h2 class="text-3xl font-black italic uppercase tracking-tighter">Acceso Institucional</h2>
+            </div>
+            
+            <div class="space-y-4">
+                <input id="email" type="email" placeholder="Email Universidad" class="w-full bg-slate-900 p-4 rounded-2xl border border-white/10 outline-none focus:border-blue-500 text-white">
+                <input id="pass" type="password" placeholder="Contraseña" class="w-full bg-slate-900 p-4 rounded-2xl border border-white/10 outline-none focus:border-blue-500 text-white">
+                <button onclick="authActions.login()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase rounded-2xl btn-push shadow-lg">Entrar al Sistema</button>
+                <button onclick="authActions.register()" class="w-full py-2 text-slate-500 text-xs hover:text-white">¿No tienes cuenta? Regístrate aquí</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Certificados -->
-    <div id="cert-modal" class="fixed inset-0 bg-black/60 z-[110] hidden flex items-center justify-center p-6" onclick="this.classList.add('hidden')">
-        <div class="bg-white rounded-3xl p-8 max-w-md w-full" onclick="event.stopPropagation()">
-            <h3 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
-                <i class="fas fa-certificate text-amber-500"></i> Mis Certificados
-            </h3>
-            <div id="cert-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
-            <button onclick="document.getElementById('cert-modal').classList.add('hidden')" class="w-full mt-8 py-3 bg-slate-100 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-all">Cerrar</button>
-        </div>
-    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-    <script>
-        const PHASES = [
-            "1: Electrónica Básica", "2: Arduino y MCU", "3: Programación C++", "4: Sensores", "5: Actuadores", 
-            "6: Diseño de PCBs", "7: Mecánica y CAD", "8: Impresión 3D", "9: IoT y Cloud", "10: Sistemas de Control", 
-            "11: Cinemática Móvil", "12: Brazos Robóticos", "13: Visión Artificial", "14: IA Embebida", "15: ROS Middleware", 
-            "16: Linux Robótico", "17: Gestión de Energía", "18: Ética Robótica", "19: Anteproyecto", "20: Portafolio"
+        // TUS CREDENCIALES INTEGRADAS
+        const firebaseConfig = {
+            apiKey: "AIzaSyBUF4X4OvGKdaUOdxtD0Eyj4F1GY-__NOQ",
+            authDomain: "electromaster-f2a7a.firebaseapp.com",
+            projectId: "electromaster-f2a7a",
+            storageBucket: "electromaster-f2a7a.firebasestorage.app",
+            messagingSenderId: "757265026642",
+            appId: "1:757265026642:web:dddb40ce77e296358c198b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = "electromaster-f2a7a";
+
+        // --- ESTADO ---
+        let userData = null;
+        const CURRICULUM = [
+            { id: 'f1', title: 'Fase 1: Circuitos DC', xp: 500, lessons: [
+                { q: "¿Unidad de Resistencia?", o: ["Ohmio", "Voltio", "Amperio"], a: "T2htaW8=" },
+                { q: "¿V = I * R es?", o: ["Ley Ohm", "Ley Watt", "Ley Tesla"], a: "TGV5IE9obQ==" }
+            ]},
+            { id: 'f2', title: 'Fase 2: Semiconductores', xp: 1000, lessons: [
+                { q: "¿Componente que rectifica?", o: ["Diodo", "Capacitor", "Inductor"], a: "RGlvZG8=" },
+                { q: "¿Transistor que usa voltaje?", o: ["MOSFET", "BJT", "Zenner"], a: "TU9TRkVU" }
+            ]}
         ];
 
-        const CURRICULUM_DATA = {
-            0: { // Fase 1
-                0: { q: "¿Qué unidad mide la resistencia eléctrica?", a: "Ohmio", d: "facil", o: ["Voltio", "Amperio", "Ohmio", "Vatio"], ok: "Correcto. El Ohmio (Ω) define la oposición al paso de corriente.", ko: "Incorrecto." },
-                1: { q: "¿Qué ley establece que la suma de corrientes que entran a un nodo es igual a las que salen?", a: "Ley de Kirchhoff de corrientes", d: "medio", o: ["Ley de Ohm", "Ley de Kirchhoff de corrientes", "Ley de Faraday", "Ley de Coulomb"], ok: "Correcto. KCL es conservación de carga.", ko: "Incorrecto." },
-                10: { q: "Un robot diferencial tiene ruedas de radio 0.05 m. Si giran a 10 rad/s, ¿cuál es la velocidad lineal?", a: "0.5 m/s", d: "dificil", o: ["0.5 m/s", "5 m/s", "0.05 m/s", "2 m/s"], ok: "Correcto. v = r × ω → 0.05 × 10 = 0.5 m/s.", ko: "Incorrecto. Usa v = r·ω." },
-                15: { q: "EXAMEN FINAL: ¿Cuál es la unidad de la diferencia de potencial?", a: "Voltio", d: "medio", o: ["Ohmio", "Voltio", "Amperio", "Vatio"], ok: "¡Certificado en Electrónica obtenido!", ko: "Incorrecto." }
+        // --- ACCIONES AUTH ---
+        window.authActions = {
+            async login() {
+                const e = document.getElementById('email').value;
+                const p = document.getElementById('pass').value;
+                try { await signInWithEmailAndPassword(auth, e, p); } catch(err) { alert("Error: " + err.message); }
             },
-            10: { // Cinemática
-                0: { q: "¿Qué modelo describe robots con dos ruedas independientes?", a: "Diferencial", d: "medio", o: ["Holonómico", "Diferencial", "Ackermann", "Omnidireccional"], ok: "Correcto.", ko: "Incorrecto." }
-            }
+            async register() {
+                const e = document.getElementById('email').value;
+                const p = document.getElementById('pass').value;
+                try { await createUserWithEmailAndPassword(auth, e, p); } catch(err) { alert("Error al registrar: " + err.message); }
+            },
+            logout() { signOut(auth); }
         };
 
-        const MISSIONS = [
-            { id: "line_follower", title: "Construir Seguidor de Línea", phases: [0, 3, 4, 9], reward: 500 },
-            { id: "robotic_arm", title: "Brazo 4 DOF de Precisión", phases: [2, 4, 11], reward: 1000 }
-        ];
-
-        let state = JSON.parse(localStorage.getItem('robo_pro_v5')) || { 
-            xp: 0, lives: 5, completed: [], streak: 0, lastDay: null, certificates: [], activeMission: MISSIONS[0] 
-        };
-        
-        let active = null;
-        let isEvaluating = false;
-
-        function save() { localStorage.setItem('robo_pro_v5', JSON.stringify(state)); updateUI(); }
-
-        function rewardXP(diff) {
-            const table = { "facil": 50, "medio": 100, "dificil": 250 };
-            return table[diff] || 100;
-        }
-
-        function checkStreak() {
-            const today = new Date().toDateString();
-            if (state.lastDay !== today) {
-                if (state.lastDay === new Date(Date.now() - 86400000).toDateString()) {
-                    state.streak++;
+        // --- LÓGICA CORE ---
+        onAuthStateChanged(auth, async (user) => {
+            const authScreen = document.getElementById('auth-screen');
+            const shell = document.getElementById('app-shell');
+            
+            if (user) {
+                const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                const docSnap = await getDoc(userRef);
+                
+                if (!docSnap.exists()) {
+                    userData = { name: user.email.split('@')[0], xp: 0, streak: 1, completed: [], role: 'student' };
+                    await setDoc(userRef, userData);
                 } else {
-                    state.streak = 1;
+                    userData = docSnap.data();
                 }
-                state.lastDay = today;
-                save();
-            }
-        }
-
-        function getQuestion(pIdx, lIdx) {
-            // Expert Mode Injection
-            if (state.xp > 10000 && Math.random() > 0.5) {
-                return {
-                    q: "Calcula la matriz de transformación homogénea T para una rotación de 90° en Z y traslación [1,0,0]. ¿Cuál es el elemento T(0,3)?",
-                    a: "1", d: "dificil", o: ["0", "1", "0.5", "-1"], ok: "Dominas la cinemática avanzada.", ko: "Revisa matrices de Denavit-Hartenberg."
-                };
-            }
-
-            if(CURRICULUM_DATA[pIdx] && CURRICULUM_DATA[pIdx][lIdx]) return CURRICULUM_DATA[pIdx][lIdx];
-            
-            const phaseName = PHASES[pIdx];
-            return {
-                q: `En el contexto de ${phaseName}, ¿cuál es el principio clave para optimizar el rendimiento en la etapa ${lIdx + 1}?`,
-                a: "Eficiencia sistémica", d: "facil", o: ["Eficiencia sistémica", "Gasto energético", "Complejidad", "Redundancia"],
-                ok: "Análisis correcto.", ko: "Error conceptual."
-            };
-        }
-
-        function renderMap() {
-            const container = document.getElementById('map-content');
-            container.innerHTML = "";
-            let globalIdx = 0;
-
-            PHASES.forEach((name, pIdx) => {
-                const head = document.createElement('div');
-                head.className = "w-full text-center mt-16";
-                const progress = (state.completed.filter(x => x.startsWith(`f${pIdx}`)).length / 16) * 100;
                 
-                head.innerHTML = `
-                    <div class="flex flex-col items-center mb-4">
-                        <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden mb-2">
-                            <div class="h-full bg-blue-500 transition-all" style="width: ${progress}%"></div>
-                        </div>
-                        <p class="text-blue-500 font-black text-[10px] uppercase tracking-widest">FASE ${pIdx + 1}</p>
-                    </div>
-                    <h3 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">${name.split(': ')[1]}</h3>`;
-                container.appendChild(head);
-
-                for(let lIdx = 0; lIdx < 16; lIdx++) {
-                    const id = `f${pIdx}l${lIdx}`;
-                    const isCert = lIdx === 15;
-                    const done = state.completed.includes(id);
-                    const current = state.completed.length === globalIdx;
-                    const locked = state.completed.length < globalIdx;
-
-                    const node = document.createElement('button');
-                    node.className = `w-14 h-14 rounded-full border-b-4 flex items-center justify-center font-black text-lg shadow-lg transition-all z-10 
-                        ${done ? 'node-completed' : (current ? 'node-current' : 'node-locked')} ${isCert ? 'node-cert' : ''}`;
-                    
-                    node.innerHTML = isCert ? '<i class="fas fa-graduation-cap"></i>' : (lIdx + 1);
-                    node.style.transform = `translateX(${Math.sin(globalIdx * 0.8) * 65}px)`;
-
-                    if(!locked) node.onclick = () => openLesson(pIdx, lIdx, id);
-                    container.appendChild(node);
-                    globalIdx++;
-                }
-            });
-            setTimeout(drawPath, 100);
-        }
-
-        function drawPath() {
-            const canvas = document.getElementById('path-canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = document.getElementById('app-container').scrollHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath(); ctx.strokeStyle = state.xp > 10000 ? "#38bdf8" : "#e2e8f0"; 
-            ctx.lineWidth = 6; ctx.setLineDash([15, 12]);
-            const buttons = document.querySelectorAll('#map-content button');
-            buttons.forEach((btn, i) => {
-                const rect = btn.getBoundingClientRect();
-                const x = rect.left + rect.width/2;
-                const y = rect.top + rect.height/2 + window.scrollY;
-                if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            });
-            ctx.stroke();
-        }
-
-        function openLesson(pIdx, lIdx, id) {
-            if(state.lives <= 0) return alert("¡Sin vidas! Practica para recuperar.");
-            const data = getQuestion(pIdx, lIdx);
-            active = { id, data, pIdx, lIdx, selected: null, correctIdx: data.o.indexOf(data.a) };
-            isEvaluating = false;
-
-            document.getElementById('lesson-overlay').classList.remove('hidden');
-            document.getElementById('badge-exam').className = (lIdx === 15) ? "px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase" : "hidden";
-            
-            const dbadge = document.getElementById('diff-badge');
-            dbadge.innerText = data.d;
-            dbadge.className = `px-3 py-1 rounded-full text-[10px] font-black uppercase ${data.d === 'facil' ? 'bg-green-100 text-green-700' : data.d === 'medio' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`;
-
-            document.getElementById('phase-label').innerText = PHASES[pIdx];
-            document.getElementById('lesson-title').innerText = lIdx === 15 ? "Certificación Final" : `Lección ${lIdx + 1}`;
-            document.getElementById('lesson-question').innerText = data.q;
-            document.getElementById('lesson-bar').style.width = "0%";
-            document.getElementById('feedback-text').classList.add('hidden');
-            document.getElementById('footer-feedback').className = "p-8 border-t-2 bg-white";
-            document.getElementById('action-btn').innerText = "Comprobar";
-            document.getElementById('action-btn').className = "btn-push w-full md:w-56 py-4 bg-blue-500 border-blue-700 text-white rounded-2xl font-black uppercase";
-
-            const grid = document.getElementById('options-grid');
-            grid.innerHTML = "";
-            data.o.forEach((opt, i) => {
-                const b = document.createElement('button');
-                b.className = "option-btn p-5 rounded-2xl text-left font-bold text-slate-700 bg-white shadow-sm border-2";
-                b.innerText = opt;
-                b.onclick = () => {
-                    if(isEvaluating) return;
-                    document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('option-selected'));
-                    b.classList.add('option-selected');
-                    active.selected = i;
-                };
-                grid.appendChild(b);
-            });
-        }
-
-        function checkAnswer() {
-            if(isEvaluating) { closeLesson(); return; }
-            if(active.selected === null) return;
-
-            isEvaluating = true;
-            const isCorrect = active.selected === active.correctIdx;
-            const btn = document.getElementById('action-btn');
-            const footer = document.getElementById('footer-feedback');
-            const feedback = document.getElementById('feedback-text');
-
-            document.querySelectorAll('.option-btn').forEach((b, i) => {
-                if(i === active.correctIdx) b.classList.add('option-correct');
-                else if(i === active.selected) b.classList.add('option-wrong');
-                b.disabled = true;
-            });
-
-            feedback.classList.remove('hidden');
-            if(isCorrect) {
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.85 } });
-                
-                if(!state.completed.includes(active.id)) {
-                    state.completed.push(active.id);
-                    state.xp += rewardXP(active.data.d);
-                    
-                    if(active.lIdx === 15) {
-                        const cert = PHASES[active.pIdx];
-                        if(!state.certificates.includes(cert)) {
-                            state.certificates.push(cert);
-                            alert("🎓 ¡Certificado desbloqueado!: " + cert);
-                        }
-                    }
-                }
-
-                footer.className = "p-8 border-t-2 bg-green-50";
-                document.getElementById('feedback-icon').className = "w-14 h-14 rounded-full flex items-center justify-center bg-green-500 text-white";
-                document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-check"></i>';
-                document.getElementById('feedback-status').innerText = "¡Correcto!";
-                document.getElementById('feedback-msg').innerText = active.data.ok;
-                document.getElementById('lesson-bar').style.width = "100%";
-                btn.className = "btn-push w-full md:w-56 py-4 bg-green-500 border-green-700 text-white rounded-2xl font-black uppercase";
-                btn.innerText = "Continuar";
+                authScreen.classList.add('hidden');
+                shell.classList.remove('hidden');
+                renderDashboard();
+                updateStats();
             } else {
-                state.lives--;
-                footer.className = "p-8 border-t-2 bg-rose-50";
-                document.getElementById('feedback-icon').className = "w-14 h-14 rounded-full flex items-center justify-center bg-rose-500 text-white";
-                document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-times"></i>';
-                document.getElementById('feedback-status').innerText = "Error";
-                document.getElementById('feedback-msg').innerText = active.data.ko;
-                btn.className = "btn-push w-full md:w-56 py-4 bg-rose-500 border-rose-700 text-white rounded-2xl font-black uppercase";
-                btn.innerText = "Entendido";
+                authScreen.classList.remove('hidden');
+                shell.classList.add('hidden');
             }
-            save();
-            renderMap();
+        });
+
+        function updateStats() {
+            document.getElementById('stat-streak').innerText = userData.streak;
+            const progress = (userData.completed.length / CURRICULUM.length) * 100;
+            document.getElementById('global-progress').style.width = `${progress}%`;
         }
 
-        function showCertificates() {
-            const list = document.getElementById('cert-list');
-            list.innerHTML = state.certificates.length === 0 ? "<p class='text-slate-400 text-center py-4'>Aún no tienes certificados.</p>" : "";
-            state.certificates.forEach(c => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-200";
-                div.innerHTML = `<i class="fas fa-graduation-cap text-amber-500"></i> <span class="font-bold text-amber-900">${c}</span>`;
-                list.appendChild(div);
-            });
-            document.getElementById('cert-modal').classList.remove('hidden');
+        function renderDashboard() {
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <header>
+                        <h2 class="text-xs font-black text-blue-500 uppercase tracking-widest mb-1">Panel del Estudiante</h2>
+                        <p class="text-3xl font-black italic uppercase">Hola, ${userData.name}</p>
+                    </header>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${CURRICULUM.map(phase => {
+                            const isDone = userData.completed.includes(phase.id);
+                            return `
+                                <div class="glass p-6 rounded-[2rem] border-white/5 relative group overflow-hidden">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="w-12 h-12 rounded-2xl ${isDone ? 'bg-green-500/20 text-green-500' : 'bg-blue-600/20 text-blue-500'} flex items-center justify-center text-xl">
+                                            <i class="fas ${isDone ? 'fa-certificate' : 'fa-bolt'}"></i>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">ID: ${phase.id}</span>
+                                    </div>
+                                    <h3 class="text-xl font-bold mb-1">${phase.title}</h3>
+                                    <p class="text-xs text-slate-400 mb-6">${phase.lessons.length} Módulos de Evaluación</p>
+                                    
+                                    <div class="flex items-center gap-3">
+                                        <button onclick="window.startLesson('${phase.id}')" class="flex-grow py-3 ${isDone ? 'bg-slate-800 text-slate-500' : 'bg-blue-600 text-white'} rounded-xl font-black uppercase text-xs btn-push">
+                                            ${isDone ? 'Repasar Fase' : 'Iniciar Fase'}
+                                        </button>
+                                        ${isDone ? `<button onclick="window.certify('${phase.id}')" class="p-3 bg-orange-500 text-white rounded-xl btn-push"><i class="fas fa-file-pdf"></i></button>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
         }
 
-        function updateUI() {
-            document.getElementById('stat-xp').innerText = state.xp.toLocaleString();
-            document.getElementById('stat-lives').innerText = state.lives;
-            document.getElementById('stat-streak').innerText = state.streak;
-            document.getElementById('modal-lives').innerText = state.lives;
-            document.getElementById('master-progress').style.width = `${(state.completed.length / 320) * 100}%`;
+        window.startLesson = (id) => {
+            const phase = CURRICULUM.find(p => p.id === id);
+            const main = document.getElementById('main-view');
+            let currentQ = 0;
+            
+            const renderQ = () => {
+                const q = phase.lessons[currentQ];
+                main.innerHTML = `
+                    <div class="max-w-md mx-auto py-10 space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
+                            <span>Módulo ${currentQ + 1} de ${phase.lessons.length}</span>
+                            <span>${phase.title}</span>
+                        </div>
+                        <h2 class="text-2xl font-black leading-tight">${q.q}</h2>
+                        <div class="space-y-3">
+                            ${q.o.map(opt => `
+                                <button onclick="window.checkAns('${btoa(opt)}', '${q.a}', ${currentQ}, '${id}')" class="w-full p-5 glass rounded-2xl border-2 border-slate-700 text-left font-bold hover:border-blue-500 transition-all">
+                                    ${opt}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            };
 
-            // Misión
-            if (state.activeMission) {
-                document.getElementById('mission-panel').classList.remove('hidden');
-                document.getElementById('mission-title').innerText = state.activeMission.title;
-                const donePhases = state.activeMission.phases.filter(p => state.certificates.includes(PHASES[p])).length;
-                document.getElementById('mission-progress').style.width = `${(donePhases / state.activeMission.phases.length) * 100}%`;
-            }
+            window.checkAns = async (val, correct, idx, pId) => {
+                if (val === correct) {
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+                    if (idx + 1 < phase.lessons.length) {
+                        currentQ++;
+                        renderQ();
+                    } else {
+                        // Fase Completada
+                        if (!userData.completed.includes(pId)) {
+                            userData.completed.push(pId);
+                            userData.xp += phase.xp;
+                            const userRef = doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'profile', 'data');
+                            await updateDoc(userRef, { completed: userData.completed, xp: userData.xp });
+                        }
+                        renderDashboard();
+                        updateStats();
+                    }
+                } else {
+                    alert("Incorrecto. Analiza el diagrama y vuelve a intentarlo.");
+                }
+            };
 
-            // Modo Experto
-            if (state.xp >= 10000) {
-                document.getElementById('main-body').classList.add('expert-mode');
-                document.getElementById('badge-expert').classList.remove('hidden');
-            }
-        }
+            renderQ();
+        };
 
-        function closeLesson() { document.getElementById('lesson-overlay').classList.add('hidden'); }
-        function confirmReset() { if(confirm("¿Borrar todo?")) { localStorage.removeItem('robo_pro_v5'); location.reload(); } }
+        window.certify = (id) => {
+            const phase = CURRICULUM.find(p => p.id === id);
+            const { jsPDF } = window.jspdf;
+            const docCert = new jsPDF('l', 'mm', 'a4');
+            const uid = auth.currentUser.uid.slice(0, 8).toUpperCase();
 
-        window.onload = () => { checkStreak(); renderMap(); updateUI(); };
-        window.onresize = drawPath;
+            docCert.setFillColor(15, 23, 42);
+            docCert.rect(0, 0, 297, 210, 'F');
+            docCert.setDrawColor(59, 130, 246);
+            docCert.setLineWidth(1);
+            docCert.rect(10, 10, 277, 190);
+
+            docCert.setTextColor(255, 255, 255);
+            docCert.setFontSize(40);
+            docCert.text("CERTIFICADO DE LOGRO", 148, 60, null, null, "center");
+            
+            docCert.setFontSize(20);
+            docCert.setTextColor(150, 150, 150);
+            docCert.text("OTORGADO A EL INGENIERO(A):", 148, 90, null, null, "center");
+            
+            docCert.setFontSize(35);
+            docCert.setTextColor(59, 130, 246);
+            docCert.text(userData.name.toUpperCase(), 148, 115, null, null, "center");
+            
+            docCert.setFontSize(15);
+            docCert.setTextColor(200, 200, 200);
+            docCert.text(`POR COMPLETAR LA FASE TÉCNICA: ${phase.title.toUpperCase()}`, 148, 145, null, null, "center");
+
+            docCert.setFontSize(10);
+            docCert.text(`ID DE VERIFICACIÓN: EM-UNI-${uid}-${id.toUpperCase()}`, 148, 180, null, null, "center");
+
+            docCert.save(`Certificado_${id}.pdf`);
+        };
+
     </script>
 </body>
 </html>
+
