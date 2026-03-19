@@ -27,15 +27,15 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // CONFIGURACIÓN DE TU NEGOCIO
+        // CONFIGURACIÓN
         const TU_WHATSAPP = "5648515663"; 
         const PRECIO_CERT = "25.00 USD";
 
         const COURSE_CONTENT = [
-            { id: 'm1', title: 'Soldadura SMD Nivel 1', video: 'dQw4w9WgXcQ', desc: 'Uso correcto de la estación de calor.' },
-            { id: 'm2', title: 'Lectura de Esquemas', video: 'P_H9-fB0K_0', desc: 'Interpretación de planos de placas base.' },
-            { id: 'm3', title: 'Reballing Avanzado', video: 'dQw4w9WgXcQ', desc: 'Técnicas con aleación 183°C.' },
-            { id: 'm4', title: 'Diagnóstico de Cortos', video: 'P_H9-fB0K_0', desc: 'Uso de cámara térmica y rocín.' }
+            { id: 'm1', title: 'Soldadura SMD Nivel 1', video: 'dQw4w9WgXcQ' },
+            { id: 'm2', title: 'Lectura de Esquemas', video: 'P_H9-fB0K_0' },
+            { id: 'm3', title: 'Reballing Avanzado', video: 'dQw4w9WgXcQ' },
+            { id: 'm4', title: 'Diagnóstico de Cortos', video: 'P_H9-fB0K_0' }
         ];
 
         window.user = null;
@@ -43,51 +43,64 @@
 
         // --- AUTH ---
         window.handleAuthAction = async (type) => {
-            const email = document.getElementById('auth-email').value;
+            const email = document.getElementById('auth-email').value.trim();
             const pass = document.getElementById('auth-pass').value;
-            const name = document.getElementById('auth-name').value;
+            const name = document.getElementById('auth-name').value.trim();
 
-            if (!email || !pass || (type === 'signup' && !name)) {
-                showToast("Completa todos los campos", "error");
-                return;
-            }
+            if (!email || !pass) return showToast("Falta email o contraseña", "error");
 
             try {
                 if (type === 'signup') {
+                    if (!name) return showToast("El nombre es obligatorio", "error");
                     const res = await createUserWithEmailAndPassword(auth, email, pass);
-                    const userRef = doc(db, 'artifacts', appId, 'users', res.user.uid, 'profile');
-                    await setDoc(userRef, {
+                    // Crear perfil inmediatamente
+                    await setDoc(doc(db, 'artifacts', appId, 'users', res.user.uid, 'profile'), {
                         displayName: name,
                         email: email,
                         isPaid: false, 
                         progress: { modulesCompleted: [] },
                         enrolledAt: new Date().toISOString()
                     });
-                    showToast("¡Cuenta creada con éxito!", "success");
+                    showToast("Cuenta creada exitosamente", "success");
                 } else {
                     await signInWithEmailAndPassword(auth, email, pass);
-                    showToast("Bienvenido de nuevo", "success");
                 }
             } catch (err) { 
-                console.error(err);
-                showToast("Error: Verifique sus credenciales", "error"); 
+                console.error(err.code);
+                if(err.code === 'auth/weak-password') showToast("Mínimo 6 caracteres", "error");
+                else if(err.code === 'auth/email-already-in-use') showToast("Email ya registrado", "error");
+                else showToast("Error de acceso: " + err.message, "error");
             }
         };
 
         window.logout = () => signOut(auth);
 
         // --- OBSERVER ---
-        onAuthStateChanged(auth, (u) => {
+        onAuthStateChanged(auth, async (u) => {
             window.user = u;
             if (u) {
-                // Listener en tiempo real del perfil
+                // Verificar si existe el perfil, si no existe esperar un poco (reintento)
+                const checkProfile = async () => {
+                    const snap = await getDoc(doc(db, 'artifacts', appId, 'users', u.uid, 'profile'));
+                    if (snap.exists()) {
+                        window.userData = snap.data();
+                        renderApp();
+                        showSection('app');
+                        // Cargar primer video por defecto
+                        if (!document.getElementById('video-frame').src || document.getElementById('video-frame').src.includes('about:blank')) {
+                            loadVideo(COURSE_CONTENT[0].id);
+                        }
+                    }
+                };
+
                 onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'profile'), (snap) => {
                     if (snap.exists()) {
                         window.userData = snap.data();
                         renderApp();
                     }
                 });
-                showSection('app');
+                
+                await checkProfile();
             } else { 
                 showSection('landing'); 
             }
@@ -96,25 +109,21 @@
         // --- RENDER ---
         function renderApp() {
             if (!window.userData) return;
-            
             document.getElementById('user-name-display').innerText = window.userData.displayName;
             
-            // Lista de Módulos
             const list = document.getElementById('module-list');
             list.innerHTML = COURSE_CONTENT.map(mod => `
-                <div class="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition cursor-pointer mb-2 ${window.userData.progress.modulesCompleted.includes(mod.id) ? 'border-l-4 border-blue-500' : ''}" onclick="loadVideo('${mod.id}')">
+                <div class="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition cursor-pointer mb-2 ${window.userData.progress.modulesCompleted.includes(mod.id) ? 'border-l-4 border-blue-500 bg-blue-500/5' : ''}" onclick="loadVideo('${mod.id}')">
                     <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-blue-500 font-bold">${mod.id.replace('m','')}</div>
-                        <h4 class="font-bold text-sm">${mod.title}</h4>
+                        <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-blue-500 text-xs font-black">${mod.id.replace('m','')}</div>
+                        <h4 class="font-bold text-sm text-slate-200">${mod.title}</h4>
                     </div>
                     ${window.userData.progress.modulesCompleted.includes(mod.id) ? '<i class="fas fa-check-circle text-emerald-500"></i>' : '<i class="fas fa-play text-[10px] text-slate-700"></i>'}
                 </div>
             `).join('');
 
-            // Lógica de Pago Manual
             const paywall = document.getElementById('paywall-section');
             const exam = document.getElementById('exam-ready');
-            
             if (window.userData.isPaid) {
                 paywall.classList.add('hidden');
                 exam.classList.remove('hidden');
@@ -126,10 +135,11 @@
 
         window.loadVideo = (id) => {
             const mod = COURSE_CONTENT.find(m => m.id === id);
-            document.getElementById('video-frame').src = `https://www.youtube.com/embed/${mod.video}`;
+            document.getElementById('video-frame').src = `https://www.youtube.com/embed/${mod.video}?autoplay=1`;
             document.getElementById('video-title').innerText = mod.title;
             document.getElementById('mark-btn').onclick = () => window.markComplete(id);
             showSubView('content');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
         window.markComplete = async (id) => {
@@ -138,16 +148,13 @@
                 await updateDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile'), {
                     "progress.modulesCompleted": [...current, id]
                 });
-                showToast("¡Lección completada!", "success");
+                showToast("Progreso guardado", "success");
             }
         };
 
-        // --- BOTÓN DE PAGO WHATSAPP ---
         window.payViaWhatsApp = () => {
-            const msg = `¡Hola! Soy ${window.userData.displayName}. Quiero desbloquear mi certificado de ReparaPro. Mi correo es: ${window.userData.email}. Ya realicé el pago de ${PRECIO_CERT}. Adjunto el comprobante.`;
-            const url = `https://wa.me/${TU_WHATSAPP}?text=${encodeURIComponent(msg)}`;
-            window.open(url, '_blank');
-            showToast("Redirigiendo a WhatsApp...", "success");
+            const msg = `¡Hola ReparaPro! Soy ${window.userData.displayName}. Solicito validación de pago para certificado técnico. Mi correo es: ${window.userData.email}.`;
+            window.open(`https://wa.me/${TU_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank');
         };
 
         window.generateCert = () => {
@@ -161,163 +168,154 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap');
-        body { font-family: 'Outfit', sans-serif; background: #080a12; color: white; margin: 0; }
-        .glass { background: rgba(15, 18, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        body { font-family: 'Outfit', sans-serif; background: #080a12; color: white; margin: 0; overflow-x: hidden; }
+        .glass { background: rgba(15, 18, 30, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.06); }
         .hidden { display: none !important; }
-        @media print { .no-print { display: none; } #cert-area { display: block !important; border: 20px solid black; padding: 50px; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        @media print { .no-print { display: none !important; } #cert-section { display: flex !important; background: white; } }
     </style>
 </head>
 <body>
 
     <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-x-full transition-all duration-300 p-4 rounded-xl font-bold shadow-2xl"></div>
 
-    <!-- LANDING / LOGIN -->
-    <section id="landing-section" class="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-slate-950 to-slate-950">
-        <div class="max-w-md w-full glass p-10 rounded-[3rem] space-y-8 shadow-2xl border-white/5">
+    <!-- REGISTRO / LOGIN -->
+    <section id="landing-section" class="min-h-screen flex items-center justify-center p-6 bg-slate-950">
+        <div class="max-w-md w-full glass p-10 rounded-[2.5rem] space-y-8 shadow-2xl">
             <div class="text-center">
-                <h1 class="text-3xl font-black tracking-tighter"><span class="text-blue-500">REPARAPRO</span> ELITE</h1>
-                <p class="text-slate-500 text-sm mt-1">Academia Técnica de Microelectrónica</p>
-            </div>
-            <div class="space-y-4">
-                <input type="text" id="auth-name" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500 transition" placeholder="Nombre completo (Solo registro)">
-                <input type="email" id="auth-email" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500 transition" placeholder="Tu Email">
-                <input type="password" id="auth-pass" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500 transition" placeholder="Contraseña">
-                
-                <div class="grid grid-cols-2 gap-4 pt-2">
-                    <button onclick="handleAuthAction('login')" class="bg-slate-800 py-4 rounded-2xl font-bold hover:bg-slate-700 transition">Entrar</button>
-                    <button onclick="handleAuthAction('signup')" class="bg-blue-600 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/20 hover:scale-[1.02] transition">Registrarme</button>
+                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-blue-600/20">
+                    <i class="fas fa-microchip text-2xl text-white"></i>
                 </div>
-                <p class="text-center text-[10px] text-slate-600 uppercase tracking-widest">Acceso instantáneo al material gratuito</p>
+                <h1 class="text-3xl font-black tracking-tighter">REPARAPRO <span class="text-blue-500">ELITE</span></h1>
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Plataforma de Capacitación</p>
+            </div>
+            <div class="space-y-3">
+                <input type="text" id="auth-name" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500" placeholder="Nombre completo">
+                <input type="email" id="auth-email" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500" placeholder="Tu Email">
+                <input type="password" id="auth-pass" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500" placeholder="Contraseña">
+                
+                <div class="grid grid-cols-2 gap-4 pt-4">
+                    <button onclick="handleAuthAction('login')" class="bg-slate-800 py-4 rounded-2xl font-bold hover:bg-slate-700 transition">Entrar</button>
+                    <button onclick="handleAuthAction('signup')" class="bg-blue-600 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/20">Registrarme</button>
+                </div>
+                <p class="text-center text-[10px] text-slate-600 font-bold uppercase py-2">Contenido Técnico 100% Actualizado</p>
             </div>
         </div>
     </section>
 
     <!-- DASHBOARD -->
-    <section id="app-section" class="hidden min-h-screen flex flex-col no-print">
-        <header class="p-6 flex justify-between items-center glass sticky top-0 z-40">
-            <h2 class="font-black italic tracking-tighter">CAMPUS VIRTUAL</h2>
+    <section id="app-section" class="hidden min-h-screen no-print">
+        <header class="p-6 flex justify-between items-center glass sticky top-0 z-40 border-b border-white/5">
+            <h2 class="font-black text-xl italic tracking-tighter">CAMPUS <span class="text-blue-500">VIRTUAL</span></h2>
             <div class="flex items-center gap-4">
-                <span id="user-name-display" class="text-sm font-bold text-blue-400"></span>
-                <button onclick="logout()" class="w-10 h-10 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="fas fa-power-off"></i></button>
+                <div class="text-right hidden sm:block">
+                    <p id="user-name-display" class="text-sm font-bold text-blue-400"></p>
+                    <p class="text-[9px] text-slate-500 font-black uppercase tracking-tighter">Nivel Técnico I</p>
+                </div>
+                <button onclick="logout()" class="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto p-6 grid lg:grid-cols-12 gap-8 w-full">
-            <!-- Sidebar Módulos -->
+        <main class="max-w-7xl mx-auto p-4 md:p-8 grid lg:grid-cols-12 gap-8">
+            <!-- Sidebar -->
             <div class="lg:col-span-4 space-y-6">
-                <div class="space-y-2">
-                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Plan de Estudios</h3>
-                    <div id="module-list" class="space-y-2"></div>
+                <div class="glass p-2 rounded-3xl">
+                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest p-4 pb-2">Contenido del Curso</h3>
+                    <div id="module-list" class="max-h-[500px] overflow-y-auto pr-2"></div>
                 </div>
                 
-                <div onclick="showSubView('exam')" class="p-6 rounded-3xl bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/30 cursor-pointer hover:shadow-xl hover:shadow-blue-500/10 transition group">
+                <div onclick="showSubView('exam')" class="p-6 rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer shadow-xl shadow-blue-600/20 hover:scale-[1.02] transition">
                     <div class="flex justify-between items-center">
                         <div>
-                            <h4 class="font-black text-blue-400 uppercase text-xs">Fase Final</h4>
-                            <p class="font-bold text-lg">Mi Certificación</p>
+                            <p class="font-black text-lg">CERTIFICACIÓN</p>
+                            <p class="text-[10px] text-white/70 uppercase">Haz clic para solicitar</p>
                         </div>
-                        <i class="fas fa-graduation-cap text-2xl text-blue-500 group-hover:rotate-12 transition"></i>
+                        <i class="fas fa-certificate text-3xl text-white/30"></i>
                     </div>
                 </div>
             </div>
 
-            <!-- Content Area -->
+            <!-- Main Content -->
             <div class="lg:col-span-8">
-                <!-- VISTA VIDEO -->
                 <div id="content-view" class="space-y-6">
-                    <div class="aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5">
-                        <iframe id="video-frame" class="w-full h-full" src="" frameborder="0" allowfullscreen></iframe>
+                    <div class="aspect-video bg-black rounded-[2rem] overflow-hidden shadow-2xl border border-white/5">
+                        <iframe id="video-frame" class="w-full h-full" src="about:blank" frameborder="0" allowfullscreen></iframe>
                     </div>
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-2">
+                    <div class="flex flex-col sm:flex-row justify-between items-start gap-4 px-2">
                         <div>
-                            <h3 id="video-title" class="text-2xl font-black italic">Bienvenido al curso</h3>
-                            <p class="text-slate-500 text-sm">Selecciona una lección para comenzar a aprender.</p>
+                            <h3 id="video-title" class="text-2xl font-black italic">Inicia tu formación</h3>
+                            <p class="text-slate-500 text-sm">Asegúrate de ver el video completo antes de marcar como visto.</p>
                         </div>
-                        <button id="mark-btn" class="bg-emerald-600 px-8 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 transition">Marcar como visto</button>
+                        <button id="mark-btn" class="w-full sm:w-auto bg-emerald-600 px-8 py-4 rounded-2xl font-black shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 transition">COMPLETADO</button>
                     </div>
                 </div>
 
-                <!-- VISTA EXAMEN / PAGO -->
-                <div id="exam-view" class="hidden space-y-6">
-                    <!-- Paywall -->
-                    <div id="paywall-section" class="glass p-12 rounded-[3.5rem] text-center space-y-8 animate-in zoom-in duration-300">
+                <!-- Pago / Examen -->
+                <div id="exam-view" class="hidden animate-in fade-in duration-500">
+                    <div id="paywall-section" class="glass p-12 rounded-[3.5rem] text-center space-y-8">
                         <div class="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto text-4xl text-blue-500">
                             <i class="fas fa-lock"></i>
                         </div>
-                        <div class="space-y-3">
-                            <h2 class="text-4xl font-black italic tracking-tighter uppercase">Obtén tu Título Oficial</h2>
-                            <p class="text-slate-400 max-w-md mx-auto">Has completado el contenido gratuito. Para emitir tu diploma profesional con número de serie y validación QR, solicita tu acceso.</p>
+                        <div class="space-y-2">
+                            <h2 class="text-4xl font-black tracking-tighter uppercase italic">Diploma de Especialista</h2>
+                            <p class="text-slate-400 max-w-sm mx-auto">Para recibir tu certificado con validez técnica, solicita la activación vía WhatsApp.</p>
                         </div>
-                        
-                        <div class="max-w-xs mx-auto space-y-6 bg-slate-900/50 p-8 rounded-[2.5rem] border border-white/5">
-                            <div>
-                                <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Inversión única</p>
-                                <h3 class="text-4xl font-black text-white">$25.00 <span class="text-sm font-normal text-slate-500">USD</span></h3>
+                        <div class="max-w-xs mx-auto space-y-4">
+                            <div class="bg-slate-900 p-6 rounded-3xl border border-white/5">
+                                <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Inversión única</p>
+                                <p class="text-4xl font-black">$25.00 <span class="text-sm font-normal text-slate-500">USD</span></p>
                             </div>
-                            <button onclick="payViaWhatsApp()" class="w-full bg-emerald-600 p-5 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20 hover:scale-105 transition">
+                            <button onclick="payViaWhatsApp()" class="w-full bg-emerald-600 p-5 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20 hover:bg-emerald-500 transition">
                                 <i class="fab fa-whatsapp text-2xl"></i> PAGAR POR WHATSAPP
                             </button>
                         </div>
-                        <p class="text-[10px] text-slate-600">Al pagar por WhatsApp, un administrador activará tu acceso manualmente tras verificar el comprobante.</p>
                     </div>
 
-                    <!-- Examen Desbloqueado -->
-                    <div id="exam-ready" class="hidden glass p-12 rounded-[3.5rem] text-center space-y-8 animate-in fade-in">
+                    <div id="exam-ready" class="hidden glass p-12 rounded-[3.5rem] text-center space-y-8">
                         <div class="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-4xl text-emerald-500">
-                            <i class="fas fa-check-circle"></i>
+                            <i class="fas fa-award"></i>
                         </div>
-                        <div class="space-y-2">
-                            <h2 class="text-4xl font-black">PAGO CONFIRMADO</h2>
-                            <p class="text-slate-400">Ya eres un miembro Pro. Genera tu diploma oficial ahora.</p>
-                        </div>
-                        <button onclick="generateCert()" class="w-full max-w-sm bg-blue-600 p-6 rounded-2xl font-black text-xl shadow-2xl shadow-blue-600/30 hover:bg-blue-500 transition">EMITIR MI DIPLOMA</button>
+                        <h2 class="text-4xl font-black">ACCESO CONCEDIDO</h2>
+                        <p class="text-slate-400">Ya puedes descargar tu diploma digital.</p>
+                        <button onclick="generateCert()" class="w-full max-w-sm bg-blue-600 p-6 rounded-2xl font-black text-xl shadow-2xl hover:bg-blue-500 transition">GENERAR DIPLOMA</button>
                     </div>
                 </div>
             </div>
         </main>
     </section>
 
-    <!-- CERTIFICADO -->
-    <section id="cert-section" class="hidden bg-white text-slate-900 p-6 min-h-screen flex items-center justify-center">
-        <div id="cert-area" class="max-w-[1000px] w-full border-[15px] border-slate-900 p-16 bg-white shadow-2xl relative text-center">
+    <!-- CERTIFICADO (PARA IMPRIMIR) -->
+    <section id="cert-section" class="hidden min-h-screen bg-white text-slate-900 p-8 flex items-center justify-center">
+        <div id="cert-area" class="max-w-[1000px] w-full border-[15px] border-slate-900 p-20 bg-white relative text-center">
             <div class="flex justify-between items-start mb-16">
                 <div class="text-left">
-                    <p class="text-[10px] font-black tracking-[0.4em] text-blue-600 uppercase">ReparaPro Elite Academy</p>
-                    <p class="text-[8px] text-slate-400">Global Technical Training Network</p>
+                    <p class="text-xs font-black tracking-widest text-blue-600 uppercase">ReparaPro Elite Academy</p>
                 </div>
-                <div class="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
-                     <i class="fas fa-microchip text-3xl text-slate-300"></i>
-                </div>
+                <div class="w-16 h-16 border border-slate-200 rounded flex items-center justify-center"><i class="fas fa-microchip text-slate-200 text-3xl"></i></div>
             </div>
-
             <div class="space-y-10">
-                <p class="font-serif italic text-2xl text-slate-500">Este documento certifica oficialmente que</p>
-                <h1 id="out-name" class="text-6xl font-black border-b-8 border-slate-900 inline-block pb-2 px-8">ALUMNO</h1>
-                <p class="text-2xl font-bold tracking-tight text-slate-800">HA COMPLETADO SATISFACTORIAMENTE LA FORMACIÓN EN<br><span class="text-blue-600 uppercase">Microelectrónica y Soldadura de Precisión</span></p>
+                <p class="font-serif italic text-2xl text-slate-400">Certifica oficialmente que</p>
+                <h1 id="out-name" class="text-6xl font-black border-b-4 border-slate-900 inline-block pb-2 px-10 italic">ALUMNO</h1>
+                <p class="text-2xl font-bold tracking-tight text-slate-700">HA COMPLETADO EL CURSO AVANZADO EN<br><span class="text-blue-600 uppercase">Microelectrónica de Dispositivos Móviles</span></p>
             </div>
-
-            <div class="flex justify-between items-end mt-24 border-t pt-10 border-slate-100">
-                <div class="text-left font-mono text-[9px] text-slate-400 uppercase">
+            <div class="flex justify-between items-end mt-32 border-t pt-10 border-slate-100 font-mono text-[9px] text-slate-400 uppercase">
+                <div class="text-left space-y-1">
                     <p>Serial ID: <span id="out-id" class="text-slate-900 font-bold"></span></p>
-                    <p>Verificación: reparapro.com/verify</p>
-                    <p>Fecha: ${new Date().toLocaleDateString()}</p>
+                    <p>Verificación: reparapro.com/check</p>
                 </div>
-                <div class="relative">
-                    <div class="w-32 h-32 bg-slate-900 rounded-full flex flex-col items-center justify-center text-amber-500 border-[8px] border-white shadow-xl">
-                        <i class="fas fa-award text-4xl"></i>
-                        <p class="text-[8px] font-black mt-1">VERIFIED</p>
-                    </div>
+                <div class="relative w-28 h-28 bg-slate-900 rounded-full flex items-center justify-center text-amber-500 border-[6px] border-white shadow-xl">
+                    <i class="fas fa-certificate text-4xl"></i>
                 </div>
                 <div class="text-right">
-                    <div class="w-32 h-1 bg-slate-900 mb-2"></div>
-                    <p class="text-[9px] font-bold uppercase">Dirección Académica</p>
-                    <p class="text-[8px] text-slate-400">ReparaPro Elite</p>
+                    <div class="w-32 h-0.5 bg-slate-900 mb-2 mx-auto"></div>
+                    <p class="font-bold text-slate-900">Dirección Académica</p>
                 </div>
             </div>
         </div>
         <div class="no-print fixed bottom-10 flex gap-4">
-            <button onclick="window.print()" class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold shadow-xl">GUARDAR COMO PDF</button>
-            <button onclick="location.reload()" class="bg-white text-slate-900 border border-slate-200 px-8 py-4 rounded-2xl font-bold">VOLVER AL PANEL</button>
+            <button onclick="window.print()" class="bg-slate-900 text-white px-10 py-5 rounded-2xl font-bold shadow-2xl">DESCARGAR PDF / IMPRIMIR</button>
+            <button onclick="location.reload()" class="bg-white text-slate-900 border px-10 py-5 rounded-2xl font-bold">REGRESAR</button>
         </div>
     </section>
 
