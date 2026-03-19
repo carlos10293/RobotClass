@@ -29,7 +29,6 @@
             collection 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Configuración actualizada con tus nuevas credenciales
         const firebaseConfig = {
             apiKey: "AIzaSyAoCqn5UQkj_oEuNFMFlO1jN1oXSuE5B7c",
             authDomain: "electronicamaster-4a117.firebaseapp.com",
@@ -46,7 +45,6 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
-        const TU_WHATSAPP = "5648515663"; 
         const COURSE_CONTENT = [
             { id: 'm1', title: 'Soldadura SMD Nivel 1', video: 'dQw4w9WgXcQ' },
             { id: 'm2', title: 'Lectura de Esquemas', video: 'P_H9-fB0K_0' },
@@ -57,7 +55,7 @@
         window.user = null;
         window.userData = null;
 
-        // --- MÉTODOS DE AUTENTICACIÓN ---
+        // --- MÉTODOS DE AUTENTICACIÓN MEJORADOS ---
 
         window.loginWithGoogle = async () => {
             try {
@@ -65,7 +63,8 @@
                 await checkAndCreateProfile(result.user, result.user.displayName);
                 showToast("Acceso con Google exitoso", "success");
             } catch (err) {
-                showToast("Error Google: " + err.message, "error");
+                console.error(err);
+                showToast("Error Google: Verifique que las ventanas emergentes estén permitidas.", "error");
             }
         };
 
@@ -83,52 +82,76 @@
             const email = document.getElementById('auth-email').value.trim();
             const pass = document.getElementById('auth-pass').value;
             const name = document.getElementById('auth-name').value.trim();
-            if (!email || !pass) return showToast("Falta email o contraseña", "error");
+            
+            if (!email || !pass) return showToast("Faltan campos por llenar", "error");
+            if (pass.length < 6) return showToast("La contraseña debe tener 6+ caracteres", "error");
 
             try {
                 if (type === 'signup') {
-                    if (!name) return showToast("Nombre requerido para registro", "error");
+                    if (!name) return showToast("Necesitamos tu nombre para registrarte", "error");
                     const res = await createUserWithEmailAndPassword(auth, email, pass);
                     await checkAndCreateProfile(res.user, name);
+                    showToast("¡Cuenta creada con éxito!", "success");
                 } else {
                     await signInWithEmailAndPassword(auth, email, pass);
+                    showToast("Bienvenido de nuevo", "success");
                 }
             } catch (err) {
-                showToast("Error: " + err.message, "error");
+                let msg = "Error al entrar";
+                if(err.code === 'auth/email-already-in-use') msg = "Este correo ya tiene cuenta";
+                if(err.code === 'auth/invalid-credential') msg = "Correo o clave incorrectos";
+                if(err.code === 'auth/invalid-email') msg = "Correo no válido";
+                showToast(msg, "error");
             }
         };
 
         async function checkAndCreateProfile(user, name) {
             const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
-            const snap = await getDoc(userRef);
-            if (!snap.exists()) {
-                await setDoc(userRef, {
-                    displayName: name || "Técnico Pro",
-                    email: user.email || "Invitado",
-                    isPaid: false, 
-                    isGuest: user.isAnonymous,
-                    progress: { modulesCompleted: [] },
-                    enrolledAt: new Date().toISOString()
-                });
+            try {
+                const snap = await getDoc(userRef);
+                if (!snap.exists()) {
+                    await setDoc(userRef, {
+                        displayName: name || "Técnico Pro",
+                        email: user.email || "Anónimo",
+                        isPaid: false, 
+                        isGuest: user.isAnonymous,
+                        progress: { modulesCompleted: [] },
+                        enrolledAt: new Date().toISOString()
+                    });
+                }
+            } catch (e) {
+                console.error("Error al crear perfil:", e);
+                showToast("Error de base de datos. Verifique sus reglas de Firebase.", "error");
             }
         }
 
-        window.logout = () => signOut(auth);
+        window.logout = () => {
+            signOut(auth).then(() => {
+                window.location.reload(); // Recarga limpia al salir
+            });
+        };
 
         // --- OBSERVADOR DE ESTADO ---
         onAuthStateChanged(auth, async (u) => {
             window.user = u;
             if (u) {
-                onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'profile'), (snap) => {
+                const userRef = doc(db, 'artifacts', appId, 'users', u.uid, 'profile');
+                onSnapshot(userRef, (snap) => {
                     if (snap.exists()) {
                         window.userData = snap.data();
                         renderApp();
                         showSection('app');
                         const frame = document.getElementById('video-frame');
-                        if (!frame.src || frame.src === "about:blank") {
+                        if (!frame.src || frame.src.includes("about:blank")) {
                             loadVideo(COURSE_CONTENT[0].id);
                         }
+                    } else {
+                        // Si el documento de perfil no existe, forzamos su creación o avisamos
+                        console.log("Perfil no encontrado, esperando creación...");
                     }
+                }, (error) => {
+                    console.error("Error Firestore Snapshot:", error);
+                    showToast("Error de permisos en Firestore.", "error");
                 });
             } else { 
                 showSection('landing'); 
@@ -148,12 +171,12 @@
 
             const list = document.getElementById('module-list');
             list.innerHTML = COURSE_CONTENT.map(mod => `
-                <div class="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition cursor-pointer mb-2 ${window.userData.progress.modulesCompleted.includes(mod.id) ? 'border-l-4 border-blue-500 bg-blue-500/5' : ''}" onclick="loadVideo('${mod.id}')">
+                <div class="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition cursor-pointer mb-2 ${window.userData.progress?.modulesCompleted?.includes(mod.id) ? 'border-l-4 border-blue-500 bg-blue-500/5' : ''}" onclick="loadVideo('${mod.id}')">
                     <div class="flex items-center gap-4">
                         <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-blue-500 text-xs font-black">${mod.id.replace('m','')}</div>
                         <h4 class="font-bold text-sm text-slate-200">${mod.title}</h4>
                     </div>
-                    ${window.userData.progress.modulesCompleted.includes(mod.id) ? '<i class="fas fa-check-circle text-emerald-500"></i>' : '<i class="fas fa-play text-[10px] text-slate-700"></i>'}
+                    ${window.userData.progress?.modulesCompleted?.includes(mod.id) ? '<i class="fas fa-check-circle text-emerald-500"></i>' : '<i class="fas fa-play text-[10px] text-slate-700"></i>'}
                 </div>
             `).join('');
 
@@ -161,7 +184,7 @@
         }
 
         function updateCertState() {
-            const modulesDone = window.userData.progress.modulesCompleted.length;
+            const modulesDone = window.userData.progress?.modulesCompleted?.length || 0;
             const allModulesDone = modulesDone >= COURSE_CONTENT.length;
             const isPaid = window.userData.isPaid;
 
@@ -190,7 +213,7 @@
 
         window.markComplete = async (id) => {
             if (!window.user) return;
-            const current = window.userData.progress.modulesCompleted;
+            const current = window.userData.progress?.modulesCompleted || [];
             if(!current.includes(id)) {
                 await updateDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile'), {
                     "progress.modulesCompleted": [...current, id]
@@ -230,7 +253,7 @@
                 } else {
                     const timestamp = Date.now().toString(36).toUpperCase();
                     const shortUid = userId.substring(0, 5).toUpperCase();
-                    const certId = `EM-${shortUid}-${timestamp}`; // EM = Electrónica Master
+                    const certId = `EM-${shortUid}-${timestamp}`;
                     
                     certData = {
                         certId: certId,
@@ -244,7 +267,7 @@
                 }
                 renderCertificateUI(certData);
             } catch (e) {
-                showToast("Error al emitir", "error");
+                showToast("Error al emitir diploma", "error");
             }
         }
 
@@ -261,18 +284,23 @@
             const id = document.getElementById('verify-input').value.trim();
             if (!id) return;
             document.getElementById('verify-result').innerHTML = `<div class="p-4 text-center animate-pulse">Buscando registro...</div>`;
-            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'certificates', id));
-            if (snap.exists()) {
-                const data = snap.data();
-                document.getElementById('verify-result').innerHTML = `
-                    <div class="glass p-6 rounded-3xl border-emerald-500/30 text-left space-y-3">
-                        <p class="text-[10px] text-emerald-500 font-black uppercase">Certificado Válido</p>
-                        <p class="text-xl font-bold">${data.studentName}</p>
-                        <p class="text-sm text-slate-400">${data.course}</p>
-                        <p class="text-xs font-mono text-blue-400">${data.certId}</p>
-                    </div>`;
-            } else {
-                document.getElementById('verify-result').innerHTML = `<p class="text-red-500 font-bold">No encontrado</p>`;
+            try {
+                // Buscamos en toda la colección pública de certificados
+                const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'certificates', id));
+                if (snap.exists()) {
+                    const data = snap.data();
+                    document.getElementById('verify-result').innerHTML = `
+                        <div class="glass p-6 rounded-3xl border-emerald-500/30 text-left space-y-3">
+                            <p class="text-[10px] text-emerald-500 font-black uppercase">Certificado Válido</p>
+                            <p class="text-xl font-bold">${data.studentName}</p>
+                            <p class="text-sm text-slate-400">${data.course}</p>
+                            <p class="text-xs font-mono text-blue-400">${data.certId}</p>
+                        </div>`;
+                } else {
+                    document.getElementById('verify-result').innerHTML = `<p class="text-red-500 font-bold">No se encontró el registro.</p>`;
+                }
+            } catch (e) {
+                showToast("Error en verificación", "error");
             }
         };
 
@@ -299,7 +327,7 @@
                 <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl rotate-3">
                     <i class="fas fa-bolt text-2xl text-white"></i>
                 </div>
-                <h1 class="text-3xl font-black tracking-tighter uppercase italic italic">Electrónica <span class="text-blue-500">Master</span></h1>
+                <h1 class="text-3xl font-black tracking-tighter uppercase italic">Electrónica <span class="text-blue-500">Master</span></h1>
                 <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Elige tu forma de aprender</p>
             </div>
             
@@ -315,7 +343,7 @@
 
             <div class="flex items-center gap-4 py-2">
                 <div class="h-[1px] bg-white/5 flex-1"></div>
-                <span class="text-[9px] font-black text-slate-600 uppercase">Ó Correo</span>
+                <span class="text-[9px] font-black text-slate-600 uppercase">O Correo</span>
                 <div class="h-[1px] bg-white/5 flex-1"></div>
             </div>
 
@@ -326,7 +354,7 @@
                 
                 <div class="grid grid-cols-2 gap-3 pt-2">
                     <button onclick="handleEmailAuth('login')" class="bg-slate-800 py-3 rounded-xl font-bold text-sm">Entrar</button>
-                    <button onclick="handleEmailAuth('signup')" class="bg-blue-600 py-3 rounded-xl font-bold text-sm">Crear Cuenta</button>
+                    <button onclick="handleEmailAuth('signup')" class="bg-blue-600 py-3 rounded-xl font-bold text-sm">Registrar</button>
                 </div>
             </div>
 
@@ -388,8 +416,8 @@
                             <i class="fas fa-lock"></i>
                         </div>
                         <h2 class="text-3xl font-black italic tracking-tighter">ACTIVAR CERTIFICACIÓN</h2>
-                        <p class="text-slate-400 text-sm max-w-sm mx-auto">Solicita tu activación de diploma digital verificable tras completar los módulos y realizar el pago administrativo.</p>
-                        <button onclick="window.open('https://wa.me/5648515663?text=Solicito activación de certificado')" class="bg-emerald-600 px-10 py-5 rounded-2xl font-black flex items-center justify-center gap-3 mx-auto hover:bg-emerald-500 transition">
+                        <p class="text-slate-400 text-sm max-w-sm mx-auto">Solicita tu activación de diploma digital tras completar los módulos y realizar el pago.</p>
+                        <button onclick="window.open('https://wa.me/5648515663?text=Solicito activación de mi certificado en Electrónica Master')" class="bg-emerald-600 px-10 py-5 rounded-2xl font-black flex items-center justify-center gap-3 mx-auto hover:bg-emerald-500 transition">
                             <i class="fab fa-whatsapp"></i> CONTACTAR SOPORTE
                         </button>
                     </div>
@@ -403,7 +431,7 @@
 
                 <div id="guest-name-capture-view" class="hidden glass p-10 rounded-[3rem] text-center space-y-6">
                     <h3 class="text-xl font-black uppercase italic">Datos del Diploma</h3>
-                    <p class="text-slate-400 text-sm">Ingresa tu nombre completo tal como debe aparecer en el diploma oficial.</p>
+                    <p class="text-slate-400 text-sm">Ingresa tu nombre completo para el diploma oficial.</p>
                     <input type="text" id="guest-fullname" class="w-full bg-slate-900 p-5 rounded-2xl border border-white/10 outline-none focus:border-blue-500 text-center font-bold" placeholder="Tu Nombre y Apellidos">
                     <button onclick="submitGuestName()" class="w-full bg-emerald-600 py-4 rounded-2xl font-black">CONFIRMAR Y EMITIR</button>
                 </div>
@@ -451,9 +479,8 @@
             const el = document.getElementById(id + '-view');
             if (el) el.classList.remove('hidden');
 
-            // Lógica para mostrar paywall o botón de generar
             if (id === 'exam') {
-                const isPaid = window.userData.isPaid;
+                const isPaid = window.userData?.isPaid || false;
                 document.getElementById('paywall-section').classList.toggle('hidden', isPaid);
                 document.getElementById('exam-ready').classList.toggle('hidden', !isPaid);
             }
@@ -461,9 +488,9 @@
         function showToast(m, t) {
             const el = document.getElementById('toast');
             el.innerText = m;
-            el.className = `fixed top-5 right-5 z-[100] p-4 rounded-xl font-bold transition-all ${t==='error'?'bg-red-500':'bg-blue-600'} text-white shadow-2xl`;
+            el.className = `fixed top-5 right-5 z-[100] p-4 rounded-xl font-bold transition-all ${t==='error'?'bg-red-500': t==='info'?'bg-amber-500':'bg-blue-600'} text-white shadow-2xl`;
             el.classList.remove('translate-x-full');
-            setTimeout(() => el.classList.add('translate-x-full'), 3000);
+            setTimeout(() => el.classList.add('translate-x-full'), 4000);
         }
     </script>
 </body>
