@@ -1,357 +1,506 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElectroMaster - Pro Learning</title>
+    <title>ElectroMaster V3 - Pro Learning</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=JetBrains+Mono&display=swap');
         
         :root {
-            --duo-green: #58cc02;
-            --duo-blue: #1cb0f6;
-            --duo-red: #ff4b4b;
-            --duo-yellow: #ffc800;
+            --primary: #3b82f6;
+            --success: #58cc02;
+            --error: #ff4b4b;
+            --warning: #ffc800;
+            --bg-dark: #0f172a;
         }
 
         body { 
             font-family: 'Nunito', sans-serif; 
-            background-color: #0f172a; 
+            background-color: var(--bg-dark); 
             color: white;
             user-select: none;
             overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .node {
-            width: 80px;
-            height: 70px;
+            width: 85px;
+            height: 80px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 2rem;
             position: relative;
             cursor: pointer;
-            transition: all 0.2s;
-            border-bottom: 6px solid rgba(0,0,0,0.2);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-bottom: 8px solid rgba(0,0,0,0.3);
             z-index: 10;
         }
 
-        .node:active {
-            transform: translateY(4px);
-            border-bottom-width: 0px;
-        }
-
-        .node-locked { background: #334155; border-color: #1e293b; color: #64748b; cursor: not-allowed; }
-        .node-active { background: var(--duo-blue); border-color: #1a8cc4; color: white; box-shadow: 0 0 20px rgba(28, 176, 246, 0.4); }
-        .node-done { background: var(--duo-green); border-color: #46a302; color: white; }
+        .node:active { transform: translateY(4px); border-bottom-width: 4px; }
+        .node-locked { background: #334155; color: #64748b; cursor: not-allowed; border-bottom: 8px solid #1e293b; }
+        .node-active { background: var(--primary); color: white; border-bottom-color: #1d4ed8; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+        .node-completed { background: var(--success); color: white; border-bottom-color: #46a302; }
 
         .path-line {
             position: absolute;
-            height: 8px;
+            width: 4px;
             background: #334155;
             z-index: 1;
-            transform-origin: left center;
+            transform-origin: top center;
         }
 
-        .option-card {
+        .option-btn {
+            background: #1e293b;
             border: 2px solid #334155;
-            transition: all 0.2s;
-            cursor: pointer;
+            border-bottom: 5px solid #334155;
+            transition: all 0.1s;
         }
 
-        .option-card:hover { background: rgba(255,255,255,0.05); border-color: #475569; }
-        .option-selected { border-color: var(--duo-blue); background: rgba(28,176,246,0.1); }
+        .option-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .option-btn.selected { border-color: var(--primary); background: rgba(59, 130, 246, 0.1); }
         
         .feedback-panel {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
+            padding: 2rem;
             transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            z-index: 100;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
         }
+        .feedback-panel.show { transform: translateY(0); }
 
-        .feedback-show { transform: translateY(0); }
+        @keyframes heart-pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        .heart-pop { animation: heart-pop 0.3s ease-out; }
 
-        .life-heart { color: var(--duo-red); transition: transform 0.3s; }
-        .heart-pop { transform: scale(1.5); }
-
-        .mono { font-family: 'JetBrains Mono', monospace; }
+        /* Scrollbar hide */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body>
+<body class="no-scrollbar">
 
-    <!-- Header Stats -->
-    <nav class="fixed top-0 w-full bg-[#0f172a] border-b border-slate-800 z-50 p-4 flex justify-between items-center">
-        <div class="flex items-center gap-6">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-fire text-orange-500 text-xl"></i>
-                <span id="stat-streak" class="font-black text-slate-300">1</span>
-            </div>
-            <div class="flex items-center gap-2">
+    <!-- Top Navigation -->
+    <nav class="fixed top-0 left-0 right-0 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 z-40 px-4 py-3">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
                 <i class="fas fa-bolt text-yellow-400 text-xl"></i>
-                <span id="stat-xp" class="font-black text-slate-300">0</span>
+                <span id="stat-xp" class="font-black text-lg">0</span>
             </div>
-        </div>
-        <div class="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-full">
-            <i class="fas fa-heart life-heart" id="heart-icon"></i>
-            <span id="stat-lives" class="font-black">5</span>
+            <div class="flex-1 mx-8 h-3 bg-slate-800 rounded-full overflow-hidden">
+                <div id="master-progress" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <i id="heart-icon" class="fas fa-heart text-red-500 text-xl"></i>
+                <span id="stat-lives" class="font-black text-lg">5</span>
+            </div>
         </div>
     </nav>
 
-    <!-- Map View -->
-    <main id="view-map" class="pt-24 pb-32 flex flex-col items-center min-h-screen relative">
-        <div id="map-container" class="w-full max-w-md relative flex flex-col items-center gap-12">
-            <!-- Nodes will be injected here -->
-        </div>
+    <!-- Main Map View -->
+    <main id="view-map" class="pt-24 pb-32 min-h-screen relative flex flex-col items-center">
+        <!-- Content will be injected by JS -->
     </main>
 
-    <!-- Quiz Overlay -->
-    <div id="view-quiz" class="fixed inset-0 bg-[#0f172a] z-[60] hidden flex flex-col">
-        <header class="p-4 flex items-center gap-4">
-            <button onclick="exitQuiz()" class="text-slate-400 text-2xl p-2"><i class="fas fa-times"></i></button>
-            <div class="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden">
-                <div id="quiz-progress" class="h-full bg-duo-green transition-all duration-500" style="width: 0%"></div>
+    <!-- Quiz View (Hidden by default) -->
+    <section id="view-quiz" class="fixed inset-0 bg-slate-950 z-50 hidden flex flex-col">
+        <header class="p-4 flex items-center justify-between border-b border-slate-900">
+            <button onclick="ui.exitQuiz()" class="text-slate-400 text-2xl p-2"><i class="fas fa-times"></i></button>
+            <div class="flex-1 mx-4 h-2 bg-slate-900 rounded-full">
+                <div id="quiz-progress" class="h-full bg-green-500 rounded-full transition-all" style="width: 0%"></div>
             </div>
+            <div class="w-10"></div>
         </header>
 
-        <main class="flex-1 p-6 overflow-y-auto">
-            <div id="question-content" class="max-w-xl mx-auto py-8">
-                <!-- Question injected here -->
-            </div>
-        </main>
+        <div id="quiz-content" class="flex-1 overflow-y-auto p-6 flex flex-col max-w-xl mx-auto w-full">
+            <!-- Questions injected here -->
+        </div>
 
-        <!-- Feedback UI -->
-        <div id="feedback-panel" class="feedback-panel p-6">
-            <div class="max-w-xl mx-auto flex flex-col gap-4">
-                <div id="feedback-message" class="flex items-center gap-4">
-                    <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"></div>
-                    <div>
-                        <h3 id="feedback-title" class="font-black text-xl"></h3>
-                        <p id="feedback-text" class="text-sm opacity-90"></p>
-                    </div>
-                </div>
-                <button id="btn-continue" class="w-full py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg">
-                    Continuar
+        <div id="quiz-footer" class="p-6 border-t border-slate-900 bg-slate-950">
+            <button id="check-btn" onclick="quizEngine.checkAnswer()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest border-b-4 border-blue-800 transition-all active:translate-y-1 active:border-b-0">
+                Comprobar
+            </button>
+        </div>
+    </section>
+
+    <!-- Feedback Panel -->
+    <div id="feedback-panel" class="feedback-panel">
+        <div class="max-w-xl mx-auto flex flex-col space-y-4">
+            <div class="flex items-center space-x-4">
+                <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"></div>
+                <h3 id="feedback-title" class="text-2xl font-black"></h3>
+            </div>
+            <p id="feedback-text" class="text-lg opacity-90"></p>
+            <button onclick="quizEngine.nextQuestion()" class="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-95">
+                Continuar
+            </button>
+        </div>
+    </div>
+
+    <!-- Certification Modal -->
+    <div id="cert-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-6">
+        <div class="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-sm w-full text-center space-y-6">
+            <div class="text-6xl text-yellow-500 animate-bounce">🏆</div>
+            <h2 class="text-3xl font-black uppercase italic">¡Nivel Superado!</h2>
+            <p class="text-slate-400">Has demostrado maestría en este módulo. ¿Deseas descargar tu certificado?</p>
+            <div class="flex flex-col space-y-3">
+                <button onclick="certificateLogic.download()" class="w-full py-4 bg-green-600 rounded-xl font-bold flex items-center justify-center space-x-2">
+                    <i class="fas fa-file-pdf"></i> <span>Descargar PDF</span>
                 </button>
+                <button onclick="ui.closeCert()" class="w-full py-4 bg-slate-800 rounded-xl font-bold">Volver al Mapa</button>
             </div>
         </div>
-    </nav>
+    </div>
 
     <script>
-        // DATA SET
+        // --- DATABASE ---
         const LEVELS = [
-            { id: 1, title: "Fundamentos Atómicos", icon: "atom", questions: [
-                {
-                    q: "¿Qué sucede con la resistencia de un conductor si duplicamos su longitud (L) manteniendo el área constante?",
-                    options: ["Se reduce a la mitad", "Se mantiene igual", "Se duplica", "Aumenta exponencialmente"],
-                    correct: 2,
-                    why: "La resistencia es directamente proporcional a la longitud ($R = ρ \cdot L / A$). A mayor camino para los electrones, mayor oposición."
-                },
-                {
-                    q: "En un átomo de silicio, ¿cuántos electrones hay en la banda de valencia?",
-                    options: ["2", "4", "8", "14"],
-                    correct: 1,
-                    why: "El Silicio es un semiconductor del grupo IV, por lo tanto posee 4 electrones en su última capa, permitiendo formar estructuras cristalinas."
-                }
-            ]},
-            { id: 2, title: "Análisis de Redes", icon: "project-diagram", questions: [
-                {
-                    q: "Según la Ley de Corrientes de Kirchhoff (KCL), la suma de corrientes en un nodo es:",
-                    options: ["Igual al voltaje de fuente", "Cero", "Infinita", "Proporcional a la resistencia"],
-                    correct: 1,
-                    why: "Principio de conservación de la carga: toda la corriente que entra a un punto debe salir de él. ΣI = 0."
-                }
-            ]},
-            { id: 3, title: "Semiconductores", icon: "microchip", questions: [
-                {
-                    q: "¿Cuál es la caída de tensión aproximada en un diodo de Silicio en polarización directa?",
-                    options: ["0.3V", "0.7V", "1.2V", "5.0V"],
-                    correct: 1,
-                    why: "Es la barrera de potencial estándar necesaria para vencer la zona de deplexión en uniones PN de silicio."
-                }
-            ]},
-            { id: 4, title: "Transistores BJT", icon: "wave-square", questions: [] },
-            { id: 5, title: "Amplificadores OP", icon: "mountain", questions: [] }
+            {
+                id: 'mod1',
+                title: 'Fundamentos Eléctricos',
+                icon: 'fa-plug',
+                xp: 100,
+                questions: [
+                    { q: "¿Qué es la corriente eléctrica?", o: ["Flujo de electrones","Voltaje","Resistencia"], a: "Flujo de electrones", correctText: "Correcto, la corriente es el flujo de electrones en un conductor.", wrongText: "Incorrecto, la corriente eléctrica se refiere al flujo de electrones." },
+                    { q: "Unidad de la resistencia eléctrica:", o: ["Ohmio","Faradio","Henrio"], a: "Ohmio", correctText: "Bien, la resistencia se mide en Ohmios (Ω).", wrongText: "Error, la resistencia se mide en Ohmios (Ω)." },
+                    { q: "¿Para qué sirve un diodo rectificador?", o: ["Amplificar","Convertir AC a DC","Subir voltaje"], a: "Convertir AC a DC", correctText: "Exacto, convierte corriente alterna en corriente continua.", wrongText: "No, un diodo rectificador convierte AC en DC." },
+                    { q: "¿Qué componente almacena energía en un campo magnético?", o: ["Resistencia","Inductor","Capacitor"], a: "Inductor", correctText: "Correcto, los inductores almacenan energía en campos magnéticos.", wrongText: "Incorrecto, el componente que almacena energía en un campo magnético es un inductor." },
+                    { q: "Símbolo de un capacitor:", o: ["| |","--|","--o--"], a: "| |", correctText: "Exacto, este símbolo representa un capacitor.", wrongText: "No, el símbolo correcto de un capacitor es | |." },
+                    { q: "¿Qué hace un resistor en un circuito?", o: ["Limita corriente","Aumenta voltaje","Almacena energía"], a: "Limita corriente", correctText: "Correcto, un resistor limita la corriente según la Ley de Ohm.", wrongText: "Error, un resistor limita la corriente en un circuito." },
+                    { q: "Unidad del capacitor:", o: ["Faradio","Henrio","Ohmio"], a: "Faradio", correctText: "Correcto, la unidad de un capacitor es el Faradio (F).", wrongText: "Incorrecto, los capacitores se miden en Faradios." },
+                    { q: "Unidad de inductancia:", o: ["Ohmio","Henrio","Faradio"], a: "Henrio", correctText: "Bien, los inductores se miden en Henrios (H).", wrongText: "Error, la inductancia se mide en Henrios (H)." },
+                    { q: "¿Qué hace un LED?", o: ["Emite luz","Almacena energía","Amplifica"], a: "Emite luz", correctText: "Exacto, un LED emite luz cuando pasa corriente.", wrongText: "No, un LED es un diodo que emite luz al pasar corriente." },
+                    { q: "Símbolo de diodo:", o: ["→|","||","--"], a: "→|", correctText: "Correcto, este es el símbolo de un diodo.", wrongText: "No, el símbolo correcto de un diodo es →|." }
+                ]
+            },
+            {
+                id: 'mod2',
+                title: 'Leyes y Circuitos',
+                icon: 'fa-microchip',
+                xp: 150,
+                questions: [
+                    { q: "Ley de Ohm:", o: ["V=IR","P=VI","E=MC2"], a: "V=IR", correctText: "Bien, la Ley de Ohm establece que V=IR.", wrongText: "Incorrecto, la Ley de Ohm es V=IR." },
+                    { q: "¿Qué es un circuito en serie?", o: ["Resistencias consecutivas","Resistencias paralelas","Un solo resistor"], a: "Resistencias consecutivas", correctText: "Exacto, en serie los componentes se conectan uno tras otro.", wrongText: "No, en serie los componentes se conectan uno tras otro." },
+                    { q: "¿Qué es un circuito en paralelo?", o: ["Resistencias consecutivas","Resistencias con mismos nodos","Un solo resistor"], a: "Resistencias con mismos nodos", correctText: "Correcto, en paralelo los extremos se conectan a los mismos nodos.", wrongText: "Incorrecto, en paralelo los componentes comparten nodos de conexión." },
+                    { q: "¿Qué hace un transformador?", o: ["Convierte voltaje","Almacena energía","Resiste corriente"], a: "Convierte voltaje", correctText: "Exacto, un transformador sube o baja voltaje en AC.", wrongText: "No, un transformador cambia el nivel de voltaje en corriente alterna." },
+                    { q: "¿Qué indica la potencia eléctrica?", o: ["Velocidad de electrones","Energía por tiempo","Resistencia"], a: "Energía por tiempo", correctText: "Bien, la potencia es energía por unidad de tiempo (P=VI).", wrongText: "Incorrecto, la potencia indica cuánta energía se consume por segundo." },
+                    { q: "Símbolo de tierra:", o: ["⊥","⏚","∩"], a: "⏚", correctText: "Correcto, este símbolo indica conexión a tierra.", wrongText: "No, el símbolo de tierra es ⏚." },
+                    { q: "¿Qué es un fusible?", o: ["Protección sobrecorriente","Almacén energía","Fuente de luz"], a: "Protección sobrecorriente", correctText: "Exacto, un fusible protege el circuito ante sobrecorriente.", wrongText: "Incorrecto, el fusible sirve para proteger el circuito ante sobrecorriente." },
+                    { q: "¿Qué indica un multímetro en modo V?", o: ["Voltaje","Corriente","Resistencia"], a: "Voltaje", correctText: "Correcto, mide el voltaje entre dos puntos.", wrongText: "No, V en el multímetro indica voltaje." },
+                    { q: "Función de un potenciómetro:", o: ["Resistencia variable","Fuente de luz","Amplificador"], a: "Resistencia variable", correctText: "Bien, un potenciómetro ajusta resistencia manualmente.", wrongText: "Error, un potenciómetro es una resistencia ajustable." },
+                    { q: "¿Qué es un capacitor electrolítico?", o: ["Polarizado","No polarizado","Resistor"], a: "Polarizado", correctText: "Correcto, tiene polaridad, cuidado al conectar.", wrongText: "No, un capacitor electrolítico es polarizado." }
+                ]
+            },
+            {
+                id: 'mod3',
+                title: 'Semiconductores',
+                icon: 'fa-transistor',
+                xp: 200,
+                questions: [
+                    { q: "¿Qué hace un diodo Zener?", o: ["Regula voltaje","Emite luz","Amplifica"], a: "Regula voltaje", correctText: "Bien, mantiene un voltaje constante en inversa.", wrongText: "Incorrecto, un diodo Zener se usa para regulación de voltaje." },
+                    { q: "¿Qué mide un amperímetro?", o: ["Corriente","Voltaje","Resistencia"], a: "Corriente", correctText: "Correcto, mide la corriente que pasa por un circuito.", wrongText: "No, un amperímetro mide la corriente eléctrica." },
+                    { q: "¿Qué mide un ohmímetro?", o: ["Resistencia","Voltaje","Corriente"], a: "Resistencia", correctText: "Bien, mide la resistencia de un componente.", wrongText: "Error, un ohmímetro mide resistencia." },
+                    { q: "¿Qué hace un transistor?", o: ["Amplifica","Almacena energía","Emite luz"], a: "Amplifica", correctText: "Correcto, puede amplificar señales.", wrongText: "Incorrecto, un transistor sirve para amplificar o conmutar señales." },
+                    { q: "Tipo de transistor NPN:", o: ["Corriente entra base positiva","Corriente entra base negativa","Solo corriente alterna"], a: "Corriente entra base positiva", correctText: "Exacto, la base recibe corriente positiva para conducir.", wrongText: "No, en NPN la corriente entra a la base positiva." },
+                    { q: "Tipo de transistor PNP:", o: ["Corriente entra base negativa","Corriente entra base positiva","Solo corriente alterna"], a: "Corriente entra base negativa", correctText: "Bien, en PNP la corriente entra a la base negativa.", wrongText: "No, en PNP la corriente debe entrar a la base negativa." },
+                    { q: "¿Qué hace un condensador?", o: ["Almacena carga eléctrica","Amplifica","Emite luz"], a: "Almacena carga eléctrica", correctText: "Correcto, los capacitores almacenan energía eléctrica temporalmente.", wrongText: "Incorrecto, los capacitores almacenan energía eléctrica." },
+                    { q: "¿Qué es un circuito RC?", o: ["Resistencia y Capacitor","Resistencia y Condensador","Solo resistencias"], a: "Resistencia y Capacitor", correctText: "Exacto, un circuito RC combina resistencia y capacitor.", wrongText: "No, un circuito RC combina resistor y capacitor." },
+                    { q: "¿Qué hace un relé?", o: ["Conmutar cargas","Emitir luz","Amplifica"], a: "Conmutar cargas", correctText: "Bien, un relé permite controlar un circuito con otro de baja potencia.", wrongText: "Error, un relé conmutará un circuito usando otro de control." },
+                    { q: "¿Qué es un potenciómetro?", o: ["Resistencia ajustable","Almacena energía","Emite luz"], a: "Resistencia ajustable", correctText: "Correcto, permite variar manualmente la resistencia en un circuito.", wrongText: "Incorrecto, un potenciómetro ajusta resistencia." }
+                ]
+            },
+            {
+                id: 'mod4',
+                title: 'Señales y Sistemas',
+                icon: 'fa-wave-square',
+                xp: 250,
+                questions: [
+                    { q: "¿Qué indica la polaridad de un diodo?", o: ["Dirección de corriente","Tensión","Resistencia"], a: "Dirección de corriente", correctText: "Exacto, la corriente solo fluye en una dirección.", wrongText: "No, un diodo solo permite paso de corriente en un sentido." },
+                    { q: "¿Qué es un SCR?", o: ["Diodo controlado por silicio","Resistencia especial","Capacitor avanzado"], a: "Diodo controlado por silicio", correctText: "Correcto, un SCR permite controlar grandes corrientes con un pulso de gate.", wrongText: "Incorrecto, un SCR es un diodo controlado por silicio." },
+                    { q: "¿Para qué sirve un fusible?", o: ["Protección del circuito","Emitir luz","Almacenar energía"], a: "Protección del circuito", correctText: "Exacto, corta la corriente en caso de sobrecarga.", wrongText: "No, su función es proteger el circuito." },
+                    { q: "¿Qué es un diodo LED?", o: ["Diodo que emite luz","Diodo de potencia","Resistor luminoso"], a: "Diodo que emite luz", correctText: "Correcto, convierte corriente eléctrica en luz visible.", wrongText: "Incorrecto, un LED es un diodo que emite luz." },
+                    { q: "¿Qué hace un transistor MOSFET?", o: ["Amplifica o conmuta","Almacena energía","Emite luz"], a: "Amplifica o conmuta", correctText: "Bien, los MOSFET se usan para amplificación y control de potencia.", wrongText: "Error, un MOSFET puede amplificar y conmutar señales." },
+                    { q: "¿Qué es un circuito RC en serie?", o: ["Resistor y capacitor conectados en serie","Resistencias en paralelo","Solo capacitores"], a: "Resistor y capacitor conectados en serie", correctText: "Correcto, el resistor y el capacitor forman un circuito RC serie.", wrongText: "Incorrecto, un RC serie tiene resistor y capacitor conectados uno tras otro." },
+                    { q: "¿Qué es un circuito RC en paralelo?", o: ["Resistor y capacitor conectados en paralelo","Resistencias en serie","Solo capacitores"], a: "Resistor y capacitor conectados en paralelo", correctText: "Bien, el resistor y capacitor se conectan a los mismos nodos.", wrongText: "No, en paralelo ambos extremos comparten nodos de conexión." },
+                    { q: "¿Qué indica la corriente continua (DC)?", o: ["Flujo constante de electrones","Flujo alterno","Resistencia variable"], a: "Flujo constante de electrones", correctText: "Correcto, la corriente DC fluye siempre en la misma dirección.", wrongText: "Incorrecto, DC significa corriente que fluye en una sola dirección." },
+                    { q: "¿Qué indica la corriente alterna (AC)?", o: ["Cambio periódico de dirección","Flujo constante","Resistencia"], a: "Cambio periódico de dirección", correctText: "Exacto, AC cambia de dirección periódicamente.", wrongText: "No, la corriente alterna cambia de sentido regularmente." },
+                    { q: "¿Qué es la capacitancia?", o: ["Capacidad de almacenar carga","Corriente máxima","Resistencia"], a: "Capacidad de almacenar carga", correctText: "Correcto, indica cuánta carga puede almacenar un capacitor.", wrongText: "Incorrecto, la capacitancia indica la capacidad de un capacitor para almacenar carga." }
+                ]
+            },
+            {
+                id: 'mod5',
+                title: 'Electrónica de Potencia I',
+                icon: 'fa-bolt-lightning',
+                xp: 300,
+                questions: [
+                    { q: "¿Qué es un MOSFET?", o: ["Transistor de efecto de campo","Diodo especial","Capacitor variable"], a: "Transistor de efecto de campo", correctText: "Correcto, un MOSFET controla la corriente usando un campo eléctrico.", wrongText: "Incorrecto, un MOSFET es un transistor controlado por voltaje." },
+                    { q: "En un MOSFET canal N, ¿qué ocurre si Vgs > Vth?", o: ["Se corta flujo","Crea canal conducción","Explota"], a: "Crea canal conducción", correctText: "Bien, se forma un canal que permite que fluya corriente.", wrongText: "No, al superar Vth se crea un canal de conducción." },
+                    { q: "¿Ventaja del IGBT frente al MOSFET?", o: ["Frecuencias GHz","Menores pérdidas alta potencia","Más barato"], a: "Menores pérdidas alta potencia", correctText: "Correcto, IGBT es mejor para manejar alta potencia con menos pérdidas.", wrongText: "Incorrecto, la ventaja principal del IGBT es menor pérdida en alta potencia." },
+                    { q: "¿Qué es un SCR?", o: ["Diodo controlado por silicio","Resistor especial","Capacitor avanzado"], a: "Diodo controlado por silicio", correctText: "Exacto, permite controlar grandes corrientes con un pulso de gate.", wrongText: "No, un SCR es un diodo controlado por silicio." },
+                    { q: "¿Qué significa dv/dt en un SCR?", o: ["Tasa de cambio de voltaje","Corriente de fuga","Temperatura"], a: "Tasa de cambio of voltaje", correctText: "Correcto, dv/dt indica cuánto puede variar el voltaje rápidamente.", wrongText: "Incorrecto, dv/dt se refiere a la velocidad de cambio de voltaje." },
+                    { q: "¿Qué hace un diodo Schottky?", o: ["Menor caída de voltaje directo","Almacena energía","Amplifica"], a: "Menor caída de voltaje directo", correctText: "Bien, tiene menor caída de voltaje y alta velocidad de conmutación.", wrongText: "No, un diodo Schottky reduce la caída de voltaje directo." },
+                    { q: "¿Para qué se usa un diodo Zener en potencia?", o: ["Regulación de voltaje","Almacén energía","Emite luz"], a: "Regulación de voltaje", correctText: "Correcto, mantiene un voltaje constante en circuitos de potencia.", wrongText: "Incorrecto, el Zener regula voltaje en inversa." },
+                    { q: "¿Qué es un transistor bipolar (BJT)?", o: ["Dispositivo que amplifica corriente","Diodo especial","Capacitor variable"], a: "Dispositivo que amplifica corriente", correctText: "Bien, un BJT puede amplificar y conmutar corrientes.", wrongText: "No, un BJT amplifica o conmuta señales eléctricas." },
+                    { q: "Polaridad de BJT NPN:", o: ["Corriente entra base positiva","Corriente entra base negativa","Solo corriente alterna"], a: "Corriente entra base positiva", correctText: "Correcto, la corriente de base positiva activa el transistor NPN.", wrongText: "Incorrecto, la base de NPN recibe corriente positiva." },
+                    { q: "Polaridad de BJT PNP:", o: ["Corriente entra base negativa","Corriente entra base positiva","Solo corriente alterna"], a: "Corriente entra base negativa", correctText: "Bien, la base de PNP recibe corriente negativa para conducir.", wrongText: "No, en PNP la corriente entra base negativa." }
+                ]
+            },
+            {
+                id: 'mod6',
+                title: 'Componentes Avanzados',
+                icon: 'fa-atom',
+                xp: 400,
+                questions: [
+                    { q: "¿Qué es un diodo de potencia?", o: ["Diodo para alta corriente","LED","Capacitor grande"], a: "Diodo para alta corriente", correctText: "Correcto, diseñado para soportar corrientes elevadas.", wrongText: "Incorrecto, un diodo de potencia soporta altas corrientes." },
+                    { q: "¿Qué es la corriente de conmutación?", o: ["Corriente máxima al encender un semiconductor","Voltaje máximo","Resistencia máxima"], a: "Corriente máxima al encender un semiconductor", correctText: "Bien, es la corriente que fluye durante el encendido.", wrongText: "No, la corriente de conmutación ocurre al activar un dispositivo." },
+                    { q: "¿Qué significa Vce en un BJT?", o: ["Voltaje colector-emisor","Voltaje de base","Corriente máxima"], a: "Voltaje colector-emisor", correctText: "Correcto, Vce indica voltaje entre colector y emisor.", wrongText: "Incorrecto, Vce es voltaje colector-emisor." },
+                    { q: "¿Qué significa Ic en un BJT?", o: ["Corriente del colector","Voltaje de base","Resistencia máxima"], a: "Corriente del colector", correctText: "Bien, Ic es la corriente que pasa por el colector.", wrongText: "No, Ic es la corriente que circula por el colector." },
+                    { q: "¿Qué significa Ib en un BJT?", o: ["Corriente de base","Voltaje de colector","Resistencia"], a: "Corriente de base", correctText: "Correcto, Ib controla el flujo de Ic.", wrongText: "Incorrecto, Ib es la corriente que controla el BJT." },
+                    { q: "¿Qué es un diodo puente?", o: ["Rectificador de 4 diodos","Diodo especial","Capacitor grande"], a: "Rectificador de 4 diodos", correctText: "Bien, convierte AC en DC usando 4 diodos.", wrongText: "No, un puente de diodos usa 4 diodos para rectificar." },
+                    { q: "¿Qué es un optoacoplador?", o: ["Aisla eléctricamente con luz","Amplificador","Resistor especial"], a: "Aisla eléctricamente con luz", correctText: "Correcto, transmite señal usando luz sin conexión eléctrica directa.", wrongText: "Incorrecto, un optoacoplador aísla usando luz." },
+                    { q: "¿Qué es el tiempo de retardo de un SCR?", o: ["Tiempo para activarse","Tiempo de apagado","Tiempo de conducción máxima"], a: "Tiempo para activarse", correctText: "Bien, indica cuánto tarda en comenzar a conducir tras el gate.", wrongText: "No, el retardo indica el tiempo hasta que el SCR conduce." },
+                    { q: "¿Qué es el tiempo de recuperación inversa de un diodo?", o: ["Tiempo que tarda en dejar de conducir en reversa","Tiempo de conducción","Voltaje máximo"], a: "Tiempo que tarda en dejar de conducir en reversa", correctText: "Correcto, indica la rapidez con que un diodo cambia de estado.", wrongText: "Incorrecto, este tiempo es el que tarda el diodo en bloquear corriente inversa." },
+                    { q: "¿Qué es el gate en un MOSFET?", o: ["Terminal que controla la corriente","Terminal de salida","Terminal de entrada de voltaje AC"], a: "Terminal que controla la corriente", correctText: "Correcto, el gate controla el flujo de corriente entre drain y source.", wrongText: "Incorrecto, el gate es la terminal de control del MOSFET." }
+                ]
+            }
         ];
 
-        const state = {
+        // --- STATE ---
+        let state = {
             xp: 0,
             lives: 5,
-            streak: 1,
             completed: [],
-            activeQuiz: null,
+            currentLevel: null,
             currentQIdx: 0,
-            selectedIdx: null
+            selectedOption: null,
+            save() {
+                localStorage.setItem('electroMasterV3', JSON.stringify({
+                    xp: this.xp,
+                    completed: this.completed
+                }));
+            },
+            load() {
+                const data = JSON.parse(localStorage.getItem('electroMasterV3'));
+                if (data) {
+                    this.xp = data.xp;
+                    this.completed = data.completed;
+                }
+            }
         };
 
-        // UI RENDERERS
-        function renderMap() {
-            const container = document.getElementById('map-container');
-            container.innerHTML = '';
-            
-            LEVELS.forEach((level, index) => {
-                const isDone = state.completed.includes(level.id);
-                const isLocked = index > 0 && !state.completed.includes(LEVELS[index-1].id);
-                const statusClass = isDone ? 'node-done' : (isLocked ? 'node-locked' : 'node-active');
+        // --- UI & RENDER ---
+        const ui = {
+            renderMap() {
+                const map = document.getElementById('view-map');
+                map.innerHTML = '';
                 
-                // Zig zag offset
-                const offset = Math.sin(index) * 60;
+                LEVELS.forEach((level, index) => {
+                    const isCompleted = state.completed.includes(level.id);
+                    const isLocked = index > 0 && !state.completed.includes(LEVELS[index-1].id);
+                    const isActive = !isCompleted && !isLocked;
 
-                const nodeHtml = `
-                    <div class="relative flex flex-col items-center" style="transform: translateX(${offset}px)">
-                        <div onclick="startLevel(${level.id})" class="node ${statusClass}">
-                            <i class="fas fa-${level.icon} text-2xl"></i>
+                    const node = document.createElement('div');
+                    node.className = `node ${isCompleted ? 'node-completed' : isLocked ? 'node-locked' : 'node-active'} mb-12`;
+                    node.style.marginLeft = `${Math.sin(index) * 60}px`; // S-Shape curve
+                    node.innerHTML = `<i class="fas ${level.icon}"></i>`;
+                    
+                    if (!isLocked) {
+                        node.onclick = () => quizEngine.start(level);
+                    }
+
+                    // Label
+                    const label = document.createElement('div');
+                    label.className = "absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-black uppercase whitespace-nowrap text-slate-500 tracking-tighter";
+                    label.innerText = level.title;
+                    node.appendChild(label);
+
+                    map.appendChild(node);
+                });
+
+                this.updateStats();
+            },
+
+            updateStats() {
+                document.getElementById('stat-xp').innerText = state.xp;
+                document.getElementById('stat-lives').innerText = state.lives;
+                const progress = (state.completed.length / LEVELS.length) * 100;
+                document.getElementById('master-progress').style.width = `${progress}%`;
+            },
+
+            exitQuiz() {
+                document.getElementById('view-quiz').classList.add('hidden');
+                document.getElementById('view-map').classList.remove('hidden');
+                this.renderMap();
+            },
+
+            showCert() {
+                document.getElementById('cert-modal').classList.remove('hidden');
+            },
+
+            closeCert() {
+                document.getElementById('cert-modal').classList.add('hidden');
+            }
+        };
+
+        // --- QUIZ ENGINE ---
+        const quizEngine = {
+            start(level) {
+                state.currentLevel = level;
+                state.currentQIdx = 0;
+                state.lives = 5;
+                document.getElementById('view-map').classList.add('hidden');
+                document.getElementById('view-quiz').classList.remove('hidden');
+                this.renderQuestion();
+            },
+
+            renderQuestion() {
+                const q = state.currentLevel.questions[state.currentQIdx];
+                const progress = (state.currentQIdx / state.currentLevel.questions.length) * 100;
+                document.getElementById('quiz-progress').style.width = `${progress}%`;
+                
+                const content = document.getElementById('quiz-content');
+                content.innerHTML = `
+                    <div class="mt-8">
+                        <h2 class="text-2xl font-black leading-tight mb-8">${q.q}</h2>
+                        <div class="grid gap-4">
+                            ${q.o.map((opt, i) => `
+                                <button onclick="quizEngine.selectOption(${i}, '${opt}')" class="option-btn p-5 rounded-2xl text-left font-bold text-lg">
+                                    <span class="inline-block w-8 h-8 rounded-lg bg-slate-800 text-center leading-8 mr-3 text-sm">${i+1}</span>
+                                    ${opt}
+                                </button>
+                            `).join('')}
                         </div>
-                        <span class="mt-2 font-black text-xs uppercase tracking-tighter text-slate-500">${level.title}</span>
                     </div>
                 `;
-                container.innerHTML += nodeHtml;
-            });
-        }
+                
+                document.getElementById('check-btn').classList.remove('hidden');
+                document.getElementById('feedback-panel').classList.remove('show');
+                state.selectedOption = null;
+            },
 
-        function startLevel(id) {
-            const level = LEVELS.find(l => l.id === id);
-            const index = LEVELS.indexOf(level);
-            if (index > 0 && !state.completed.includes(LEVELS[index-1].id)) return;
+            selectOption(idx, text) {
+                state.selectedOption = text;
+                const btns = document.querySelectorAll('.option-btn');
+                btns.forEach((b, i) => {
+                    b.classList.toggle('selected', i === idx);
+                });
+            },
 
-            state.activeQuiz = level;
-            state.currentQIdx = 0;
-            document.getElementById('view-map').classList.add('hidden');
-            document.getElementById('view-quiz').classList.remove('hidden');
-            renderQuestion();
-        }
+            checkAnswer() {
+                if (!state.selectedOption) return;
 
-        function renderQuestion() {
-            const q = state.activeQuiz.questions[state.currentQIdx];
-            const progress = (state.currentQIdx / state.activeQuiz.questions.length) * 100;
-            document.getElementById('quiz-progress').style.width = `${progress}%`;
-            
-            state.selectedIdx = null;
-            const container = document.getElementById('question-content');
-            
-            container.innerHTML = `
-                <h2 class="text-2xl font-black mb-8 leading-tight animate-in fade-in slide-in-from-top-4">${q.q}</h2>
-                <div class="grid gap-4">
-                    ${q.options.map((opt, i) => `
-                        <div onclick="selectOption(${i})" id="opt-${i}" 
-                             class="option-card p-5 rounded-2xl font-bold flex items-center gap-4 border-2">
-                            <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-xs">${i+1}</div>
-                            <span>${opt}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+                const q = state.currentLevel.questions[state.currentQIdx];
+                const isCorrect = state.selectedOption === q.a;
+                const panel = document.getElementById('feedback-panel');
+                const title = document.getElementById('feedback-title');
+                const text = document.getElementById('feedback-text');
+                const icon = document.getElementById('feedback-icon');
+                const btn = panel.querySelector('button');
 
-            // Reset feedback
-            const panel = document.getElementById('feedback-panel');
-            panel.className = 'feedback-panel p-6';
-            panel.classList.remove('feedback-show');
-        }
+                panel.className = `feedback-panel show ${isCorrect ? 'bg-green-600' : 'bg-red-600'}`;
+                title.innerText = isCorrect ? '¡Excelente!' : 'Sigue intentando';
+                text.innerText = isCorrect ? q.correctText : q.wrongText;
+                icon.innerHTML = `<i class="fas ${isCorrect ? 'fa-check-circle' : 'fa-times-circle'}"></i>`;
+                btn.className = `w-full py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-95 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`;
 
-        window.selectOption = (idx) => {
-            document.querySelectorAll('.option-card').forEach(el => el.classList.remove('option-selected'));
-            document.getElementById(`opt-${idx}`).classList.add('option-selected');
-            state.selectedIdx = idx;
-            showCheckButton();
-        };
+                if (!isCorrect) {
+                    state.lives--;
+                    document.getElementById('heart-icon').classList.add('heart-pop');
+                    setTimeout(() => document.getElementById('heart-icon').classList.remove('heart-pop'), 300);
+                    if (state.lives <= 0) {
+                        btn.innerText = "Reintentar Nivel";
+                        btn.onclick = () => location.reload();
+                    }
+                } else {
+                    state.xp += 10;
+                }
+                
+                ui.updateStats();
+            },
 
-        function showCheckButton() {
-            const panel = document.getElementById('feedback-panel');
-            panel.innerHTML = `
-                <div class="max-w-xl mx-auto">
-                    <button onclick="validateAnswer()" class="w-full py-4 bg-[#1cb0f6] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_4px_0_#1a8cc4] active:shadow-none active:translate-y-1 transition-all">
-                        Comprobar
-                    </button>
-                </div>
-            `;
-            panel.classList.add('feedback-show');
-            panel.style.background = "#0f172a";
-            panel.style.borderTop = "1px solid #334155";
-        }
+            nextQuestion() {
+                if (state.currentQIdx < state.currentLevel.questions.length - 1) {
+                    state.currentQIdx++;
+                    this.renderQuestion();
+                } else {
+                    this.finishLevel();
+                }
+            },
 
-        window.validateAnswer = () => {
-            const q = state.activeQuiz.questions[state.currentQIdx];
-            const isCorrect = state.selectedIdx === q.correct;
-            const panel = document.getElementById('feedback-panel');
-            
-            const msgObj = isCorrect ? {
-                bg: '#d7ffb8',
-                color: '#58a700',
-                title: '¡Excelente trabajo!',
-                icon: 'fa-check-circle',
-                btnClass: 'bg-[#58cc02] shadow-[0_4px_0_#46a302]'
-            } : {
-                bg: '#ffdfe0',
-                color: '#ea2b2b',
-                title: 'Solución técnica:',
-                icon: 'fa-times-circle',
-                btnClass: 'bg-[#ff4b4b] shadow-[0_4px_0_#d43535]'
-            };
-
-            if (!isCorrect) {
-                state.lives--;
-                updateStats();
-                if(state.lives <= 0) { alert("¡Sin vidas! Repasando..."); exitQuiz(); return; }
-            } else {
-                state.xp += 50;
-                updateStats();
-                confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
-            }
-
-            panel.style.background = msgObj.bg;
-            panel.innerHTML = `
-                <div class="max-w-xl mx-auto flex flex-col gap-4">
-                    <div class="flex items-start gap-4" style="color: ${msgObj.color}">
-                        <i class="fas ${msgObj.icon} text-4xl"></i>
-                        <div>
-                            <h3 class="font-black text-xl">${msgObj.title}</h3>
-                            <p class="text-sm font-bold opacity-80">${q.why}</p>
-                        </div>
-                    </div>
-                    <button onclick="handleContinue()" class="w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest ${msgObj.btnClass} active:shadow-none active:translate-y-1 transition-all">
-                        Continuar
-                    </button>
-                </div>
-            `;
-        };
-
-        window.handleContinue = () => {
-            if (state.currentQIdx < state.activeQuiz.questions.length - 1) {
-                state.currentQIdx++;
-                renderQuestion();
-            } else {
-                finishLevel();
+            finishLevel() {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                if (!state.completed.includes(state.currentLevel.id)) {
+                    state.completed.push(state.currentLevel.id);
+                    state.xp += state.currentLevel.xp;
+                }
+                state.save();
+                
+                // Si es el nivel final o fase 2 (mod 5 o 6), mostrar certificado
+                if (state.currentLevel.id === 'mod6') {
+                    ui.showCert();
+                } else {
+                    ui.exitQuiz();
+                }
             }
         };
 
-        function finishLevel() {
-            state.completed.push(state.activeQuiz.id);
-            exitQuiz();
-            renderMap();
-        }
+        // --- CERTIFICATE ---
+        const certificateLogic = {
+            download() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                const title = state.currentLevel.title;
+                const date = new Date().toLocaleDateString();
 
-        function exitQuiz() {
-            document.getElementById('view-map').classList.remove('hidden');
-            document.getElementById('view-quiz').classList.add('hidden');
-        }
+                // Background
+                doc.setFillColor(15, 23, 42);
+                doc.rect(0, 0, 297, 210, 'F');
+                doc.setDrawColor(59, 130, 246);
+                doc.setLineWidth(2);
+                doc.rect(10, 10, 277, 190);
 
-        function updateStats() {
-            document.getElementById('stat-xp').innerText = state.xp;
-            document.getElementById('stat-lives').innerText = state.lives;
-            const heart = document.getElementById('heart-icon');
-            heart.classList.add('heart-pop');
-            setTimeout(() => heart.classList.remove('heart-pop'), 300);
-        }
+                // Content
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(40);
+                doc.text("CERTIFICADO DE LOGRO", 148, 60, null, null, "center");
+                
+                doc.setFontSize(20);
+                doc.setTextColor(150, 150, 150);
+                doc.text("OTORGADO A EL INGENIERO(A):", 148, 90, null, null, "center");
+                
+                doc.setFontSize(35);
+                doc.setTextColor(59, 130, 246);
+                doc.text("ESTUDIANTE PRO", 148, 115, null, null, "center");
+                
+                doc.setFontSize(18);
+                doc.setTextColor(200, 200, 200);
+                doc.text(`Por completar exitosamente el módulo:`, 148, 140, null, null, "center");
+                doc.text(title.toUpperCase(), 148, 155, null, null, "center");
 
-        // Init
-        renderMap();
-        updateStats();
+                doc.setFontSize(12);
+                doc.text(`Fecha: ${date}`, 40, 185);
+                doc.text("ID: ELECTROM-PRO-" + Math.random().toString(36).substr(2, 9).toUpperCase(), 200, 185);
 
+                doc.save('Certificado_ElectroMaster.pdf');
+                ui.closeCert();
+                ui.exitQuiz();
+            }
+        };
+
+        window.onload = () => {
+            state.load();
+            ui.renderMap();
+        };
     </script>
 </body>
 </html>
