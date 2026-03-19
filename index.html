@@ -2,517 +2,646 @@
 <html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aprendeelectronica - Engineering Master Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Aprendeelectronica V6 | Engineering Elite Platform</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    
+    <!-- External Resources -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- PayPal SDK con ID de Cliente Configurado para MXN -->
+    <!-- PayPal SDK -->
     <script src="https://www.paypal.com/sdk/js?client-id=ASSSIhxluN4wMEyTbrRbRbBeNHKy52mKY6o0Q1Dma%20qLwgX9Zb3uFCgQ3rOakMQQu8INNR4Sf2eZrDbU8A&currency=MXN"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
         
         :root {
-            --bg: #0f172a;
-            --panel: #1e293b;
-            --accent: #3b82f6;
+            --primary: #3b82f6;
+            --secondary: #6366f1;
+            --accent: #f59e0b;
             --success: #10b981;
-            --error: #f43f5e;
-            --gold: #fbbf24;
+            --danger: #ef4444;
+            --surface: #1e293b;
+            --background: #0f172a;
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg);
-            color: #f1f5f9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--background);
+            color: #f8fafc;
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
-            user-select: none;
         }
 
-        /* Mapa de Progreso Estilo Gamificado */
-        .node-path {
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--background); }
+        ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 10px; }
+
+        /* --- Gamified Map Styles --- */
+        .map-container {
             position: relative;
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 120px 0;
+            padding-bottom: 150px;
+        }
+
+        .path-line {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary), transparent);
+            z-index: 1;
+            opacity: 0.2;
+        }
+
+        .node-item {
+            position: relative;
+            z-index: 10;
+            margin-bottom: 6rem;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        .svg-connector {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-            opacity: 0.3;
-        }
-
-        .node-wrapper {
-            position: relative;
-            z-index: 10;
-            margin-bottom: 70px;
-            transition: transform 0.3s ease;
-        }
-
-        .node {
-            width: 80px;
-            height: 75px;
+        .node-btn {
+            width: 84px;
+            height: 80px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             border-bottom: 8px solid rgba(0,0,0,0.3);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-            position: relative;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
         }
 
-        .node:active:not(.locked) {
-            transform: scale(0.9) translateY(4px);
+        .node-btn:active:not(.locked) {
+            transform: scale(0.92) translateY(6px);
             border-bottom-width: 2px;
         }
 
-        .node.locked { background: #334155; color: #64748b; border-bottom-color: #1e293b; cursor: not-allowed; filter: grayscale(1); }
-        .node.current { background: var(--accent); color: white; border-bottom-color: #1d4ed8; animation: floating 3s ease-in-out infinite; }
-        .node.completed { background: var(--success); color: white; border-bottom-color: #059669; }
-        .node.final { background: var(--gold); color: #92400e; border-bottom-color: #d97706; }
+        .node-btn.locked { background: #334155; color: #64748b; border-bottom-color: #1e293b; cursor: not-allowed; }
+        .node-btn.current { 
+            background: linear-gradient(135deg, var(--primary), var(--secondary)); 
+            color: white; 
+            border-bottom-color: #1d4ed8;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+            animation: pulse-glow 2s infinite;
+        }
+        .node-btn.completed { background: var(--success); color: white; border-bottom-color: #059669; }
 
-        @keyframes floating {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+            70% { box-shadow: 0 0 40px 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
         }
 
-        .drawer {
-            position: fixed;
-            bottom: -100%;
-            left: 0;
-            width: 100%;
-            transition: bottom 0.4s cubic-bezier(0.36, 0, 0.2, 1);
-            z-index: 200;
-        }
-        .drawer.active { bottom: 0; }
-
-        .screen { display: none; min-height: 100vh; animation: screenIn 0.4s ease-out; }
+        /* --- Screens --- */
+        .screen { display: none; min-height: 100vh; animation: fadeIn 0.4s ease; }
         .screen.active { display: flex; flex-direction: column; }
-        @keyframes screenIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .option-btn {
-            @apply w-full p-4 rounded-2xl border-2 border-slate-700 bg-slate-800 text-left font-semibold transition-all mb-3 flex items-center gap-4 hover:bg-slate-700 active:scale-[0.98];
+        /* --- Quiz UI --- */
+        .option-card {
+            @apply w-full p-5 rounded-3xl border-2 border-slate-800 bg-slate-900/50 text-left transition-all flex items-center gap-4 hover:border-blue-500/50 hover:bg-slate-800 active:scale-95;
         }
-        .option-btn.selected { @apply border-blue-500 bg-blue-500/10 text-blue-100; }
-        
-        .stat-card {
-            @apply bg-slate-800/50 border border-slate-700 p-4 rounded-2xl text-center;
+        .option-card.selected { @apply border-blue-500 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.1)]; }
+        .option-card.correct { @apply border-emerald-500 bg-emerald-500/10; }
+        .option-card.wrong { @apply border-rose-500 bg-rose-500/10; }
+
+        /* --- Bottom Nav --- */
+        .bottom-nav {
+            @apply fixed bottom-0 left-0 w-full bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 px-6 py-4 flex justify-around items-center z-[100];
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
         }
+        .nav-item { @apply flex flex-col items-center gap-1 text-slate-500 transition-colors; }
+        .nav-item.active { @apply text-blue-500; }
     </style>
 </head>
-<body class="bg-slate-950">
+<body>
+
+    <!-- OVERLAY: LOADING -->
+    <div id="loading-screen" class="fixed inset-0 bg-slate-950 z-[1000] flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="w-20 h-20 relative">
+            <div class="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <h2 class="mt-8 font-black text-xl tracking-[0.3em] uppercase">Sincronizando...</h2>
+    </div>
 
     <!-- HEADER -->
-    <header class="fixed top-0 w-full bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 z-50 px-4 py-3">
+    <header class="fixed top-0 w-full bg-slate-950/80 backdrop-blur-2xl border-b border-slate-800/50 z-[90] px-6 py-4">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <i class="fas fa-microchip text-white"></i>
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <div id="streak-badge" class="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-[10px] flex items-center justify-center font-bold">1</div>
+                    <i class="fas fa-fire text-orange-500 text-2xl"></i>
                 </div>
-                <div class="hidden sm:block">
-                    <h1 class="font-black text-md leading-none uppercase tracking-tighter">Aprendeelectronica</h1>
-                    <span id="user-rank" class="text-[10px] text-blue-400 font-bold tracking-widest">RANGO: NOVATO</span>
+                <div>
+                    <h1 class="text-sm font-black uppercase tracking-widest text-slate-400">Nivel <span id="user-lv">1</span></h1>
+                    <div class="w-24 h-1.5 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                        <div id="lv-progress" class="h-full bg-blue-500" style="width: 30%"></div>
+                    </div>
                 </div>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2 text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full text-xs font-black">
-                    <i class="fas fa-bolt"></i> <span id="header-xp">0</span>
+            
+            <div class="flex gap-4">
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-2xl shadow-inner">
+                    <i class="fas fa-bolt text-blue-400 text-xs"></i>
+                    <span id="stat-xp" class="text-xs font-black font-mono">2,450</span>
                 </div>
-                <div class="flex items-center gap-2 text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full text-xs font-black">
-                    <i class="fas fa-heart"></i> <span id="header-lives">3</span>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-2xl">
+                    <i class="fas fa-heart text-rose-500 text-xs"></i>
+                    <span id="stat-lives" class="text-xs font-black font-mono">3</span>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- PANTALLA: MAPA -->
-    <section id="screen-map" class="screen active pt-20 pb-32">
-        <div class="max-w-xl mx-auto px-6">
-            <div class="grid grid-cols-2 gap-3 mb-8">
-                <div class="stat-card">
-                    <span class="block text-[10px] uppercase text-slate-500 font-bold mb-1">Módulos</span>
-                    <span id="stat-progress" class="text-xl font-black">0/15</span>
+    <!-- PANTALLA: MAPA (PRINCIPAL) -->
+    <main id="screen-map" class="screen active pt-28 pb-40">
+        <div class="max-w-2xl mx-auto px-6">
+            <!-- Rango Card -->
+            <div class="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30 p-6 rounded-[2.5rem] mb-12 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Rango Actual</span>
+                    <h3 id="rank-name" class="text-2xl font-black text-white">Ingeniero Novato</h3>
                 </div>
-                <div class="stat-card">
-                    <span class="block text-[10px] uppercase text-slate-500 font-bold mb-1">Precisión</span>
-                    <span id="stat-accuracy" class="text-xl font-black">0%</span>
+                <div class="w-14 h-14 bg-blue-500/20 rounded-2xl flex items-center justify-center border border-blue-500/50 text-2xl text-blue-400">
+                    <i class="fas fa-microchip"></i>
                 </div>
             </div>
 
-            <div class="node-path" id="map-render">
-                <svg class="svg-connector" id="svg-paths"></svg>
+            <div id="map-render" class="map-container">
+                <div class="path-line"></div>
+                <!-- Los nodos se generan aquí -->
             </div>
         </div>
-    </section>
+    </main>
 
-    <!-- PANTALLA: QUIZ -->
-    <section id="screen-quiz" class="screen fixed inset-0 bg-slate-950 z-[100] flex-col overflow-hidden">
-        <div class="p-4 flex items-center justify-between border-b border-slate-800 bg-slate-900/50">
-            <button onclick="quizEngine.confirmExit()" class="text-slate-500 p-2 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
-            <div class="flex-1 mx-4 h-3 bg-slate-800 rounded-full overflow-hidden">
-                <div id="quiz-progress" class="h-full bg-blue-500 transition-all duration-500" style="width: 0%"></div>
+    <!-- PANTALLA: DASHBOARD (ESTADÍSTICAS) -->
+    <main id="screen-stats" class="screen pt-28 pb-40 px-6">
+        <div class="max-w-xl mx-auto space-y-6">
+            <h2 class="text-3xl font-black mb-8 text-center">Tu Progreso</h2>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 text-center">
+                    <i class="fas fa-check-circle text-emerald-500 text-3xl mb-3"></i>
+                    <span class="block text-[10px] uppercase font-bold text-slate-500">Aciertos</span>
+                    <span id="dash-correct" class="text-2xl font-black">0</span>
+                </div>
+                <div class="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 text-center">
+                    <i class="fas fa-bullseye text-blue-500 text-3xl mb-3"></i>
+                    <span class="block text-[10px] uppercase font-bold text-slate-500">Precisión</span>
+                    <span id="dash-accuracy" class="text-2xl font-black">0%</span>
+                </div>
             </div>
-            <div class="text-slate-400 font-mono text-xs font-bold" id="quiz-step">01/10</div>
-        </div>
 
-        <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center">
-            <div class="max-w-2xl w-full pt-4">
-                <div id="q-category" class="inline-block px-3 py-1 rounded-lg bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest mb-4">INGENIERÍA APLICADA</div>
-                <h2 id="q-text" class="text-xl sm:text-2xl font-bold mb-8 leading-tight">Cargando desafío técnico...</h2>
-                <div id="q-options" class="w-full space-y-3"></div>
-            </div>
-        </div>
-
-        <div id="feedback-drawer" class="drawer bg-slate-900 border-t-4 border-slate-800 p-6 rounded-t-[2.5rem] shadow-2xl">
-            <div class="max-w-2xl mx-auto">
-                <div class="flex items-center gap-4 mb-4">
-                    <div id="f-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-lg"></div>
-                    <div>
-                        <h4 id="f-title" class="text-xl font-black">Feedback</h4>
-                        <p id="f-subtitle" class="text-xs text-slate-400 font-bold uppercase">Análisis Técnico</p>
+            <div class="bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800">
+                <h4 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Medallas Ganadas</h4>
+                <div id="badges-container" class="flex flex-wrap gap-4">
+                    <!-- Badges dinámicos -->
+                    <div class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-slate-600 border-2 border-dashed border-slate-700">
+                        <i class="fas fa-lock text-sm"></i>
                     </div>
                 </div>
-                <div class="bg-slate-950/50 p-4 rounded-xl border border-white/5 mb-6">
-                    <p id="f-body" class="text-slate-300 text-sm leading-relaxed font-mono"></p>
-                </div>
-                <button id="btn-next" class="w-full py-4 rounded-xl font-black text-white uppercase tracking-widest transition-all transform active:scale-95 shadow-xl">Continuar</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- PANTALLA: QUIZ ENGINE -->
+    <section id="screen-quiz" class="fixed inset-0 bg-slate-950 z-[200] hidden flex-col">
+        <div class="p-6 flex items-center justify-between">
+            <button onclick="quizEngine.exit()" class="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-slate-500"><i class="fas fa-times"></i></button>
+            <div class="flex-1 mx-6 h-2.5 bg-slate-900 rounded-full overflow-hidden">
+                <div id="q-bar" class="h-full bg-blue-500 transition-all duration-700" style="width: 0%"></div>
+            </div>
+            <div id="q-count" class="text-xs font-mono font-black text-slate-500">01/10</div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-6 py-4 flex flex-col items-center">
+            <div class="max-w-2xl w-full">
+                <div id="q-tag" class="inline-block px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase mb-6">MÓDULO TÉCNICO</div>
+                <h2 id="q-text" class="text-2xl font-bold mb-10 leading-snug">Cargando desafío de ingeniería...</h2>
+                <div id="q-options" class="space-y-4"></div>
             </div>
         </div>
 
-        <div id="quiz-footer-initial" class="p-6 border-t border-slate-800 bg-slate-950">
-             <button id="btn-check" disabled class="w-full py-4 rounded-xl font-black text-slate-500 bg-slate-800 uppercase tracking-widest transition-all">Validar Respuesta</button>
+        <div id="quiz-feedback" class="p-8 bg-slate-900 border-t-4 border-slate-800 transform translate-y-full transition-transform duration-300">
+            <div class="max-w-2xl mx-auto">
+                <div class="flex items-center gap-4 mb-6">
+                    <div id="fb-icon" class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg"></div>
+                    <div>
+                        <h4 id="fb-title" class="text-xl font-black">Resultado</h4>
+                        <p id="fb-subtitle" class="text-xs text-slate-400 font-bold uppercase">Análisis del Mentor</p>
+                    </div>
+                </div>
+                <div class="bg-slate-950/50 p-5 rounded-2xl border border-white/5 mb-8">
+                    <p id="fb-body" class="text-slate-300 text-sm leading-relaxed italic"></p>
+                </div>
+                <button id="btn-continue" class="w-full py-5 rounded-[2rem] bg-blue-600 text-white font-black uppercase tracking-[0.2em] shadow-xl hover:bg-blue-500 active:scale-95 transition-all">Continuar</button>
+            </div>
         </div>
     </section>
 
-    <!-- PANTALLA: CERTIFICACIÓN (CON PAYPAL) -->
-    <section id="screen-cert" class="screen fixed inset-0 bg-slate-950 z-[150] items-center justify-center p-4">
-        <div class="max-w-md w-full bg-slate-900 border border-slate-800 p-8 rounded-[3rem] text-center shadow-2xl overflow-y-auto max-h-[95vh]">
-            <div class="relative inline-block mb-6">
-                <div class="w-24 h-24 bg-yellow-500/20 text-yellow-500 rounded-full flex items-center justify-center text-4xl border-4 border-yellow-500/10">
-                    <i class="fas fa-certificate"></i>
-                </div>
-                <div class="absolute -bottom-2 -right-2 bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center border-4 border-slate-900">
-                    <i class="fas fa-star"></i>
-                </div>
+    <!-- PANTALLA: CERTIFICACIÓN -->
+    <section id="screen-cert" class="fixed inset-0 bg-slate-950 z-[300] hidden flex-col items-center justify-center p-6 text-center">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 p-10 rounded-[3.5rem] shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="w-24 h-24 bg-amber-500/20 text-amber-500 rounded-full mx-auto flex items-center justify-center text-4xl border-4 border-amber-500/10 mb-6">
+                <i class="fas fa-award"></i>
             </div>
+            <h2 class="text-3xl font-black mb-3">¡Cúspide Alcanzada!</h2>
+            <p class="text-slate-400 text-sm mb-10 leading-relaxed uppercase tracking-tighter">Has validado tus conocimientos ante el estándar Aprendeelectronica Elite.</p>
             
-            <h2 class="text-2xl font-black mb-2">¡Ingeniero Master!</h2>
-            <p class="text-slate-400 text-xs mb-8 uppercase tracking-widest font-bold">Has completado el currículo de especialización.</p>
-            
-            <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 mb-6 text-left">
-                <div class="flex justify-between items-center mb-1">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-tighter">Certificación Digital</span>
-                    <span class="text-lg font-black text-white">$100.00 MXN</span>
+            <div class="bg-slate-950 p-6 rounded-3xl border border-slate-800 mb-8 text-left">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[10px] font-black text-slate-500 uppercase">Certificado Oficial Pro</span>
+                    <span class="text-xl font-black text-white">$100 MXN</span>
                 </div>
-                <p class="text-[9px] text-slate-400 leading-tight">Incluye folio único verificable, sello digital y validez curricular técnica para CV.</p>
+                <p class="text-[10px] text-slate-500">Validez casi idéntica a estándares industriales. Incluye Folio Único y QR de Verificación.</p>
             </div>
 
-            <div id="paypal-button-container" class="mb-4"></div>
-            
-            <button onclick="app.reset()" class="text-slate-600 hover:text-rose-500 text-[10px] font-bold uppercase tracking-widest transition-colors">Reiniciar Progreso Académico</button>
+            <div id="paypal-btn" class="mb-6 min-h-[150px]"></div>
+
+            <button onclick="ui.switch('screen-map')" class="text-slate-500 font-bold text-xs uppercase hover:text-white transition-colors">Volver al Mapa</button>
         </div>
     </section>
 
-    <div id="qrcode-container" class="hidden"></div>
+    <!-- QR HIDDEN (PARA PDF) -->
+    <div id="qr-gen" class="hidden"></div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+        <button onclick="ui.switch('screen-map')" id="nav-map" class="nav-item active">
+            <i class="fas fa-map-marked-alt text-xl"></i>
+            <span class="text-[9px] font-bold uppercase">Aprender</span>
+        </button>
+        <button onclick="ui.switch('screen-stats')" id="nav-stats" class="nav-item">
+            <i class="fas fa-chart-pie text-xl"></i>
+            <span class="text-[9px] font-bold uppercase">Progreso</span>
+        </button>
+        <button onclick="ui.switch('screen-cert')" id="nav-cert" class="nav-item">
+            <i class="fas fa-certificate text-xl"></i>
+            <span class="text-[9px] font-bold uppercase">Título</span>
+        </button>
+    </nav>
 
     <script>
-        // DB DE ALTO NIVEL - 15 MODULOS (SIMULADOS)
-        const DB = {
-            modules: [
-                { id: 'm1', title: 'Fundamentos DC', icon: 'bolt', xp: 500, q: [
-                    { q: "¿Qué ley rige la relación V=IR?", a: ["Ohm", "Lenz", "Watt", "Joule"], c: 0, exp: "La Ley de Ohm es la base de todo análisis circuital en DC." },
-                    { q: "¿En paralelo, el voltaje es?", a: ["Suma", "Igual en ramas", "Cero", "Variable"], c: 1, exp: "Nodos comunes mantienen el mismo diferencial de potencial." },
-                    { q: "¿Unidad de conductancia?", a: ["Ohm", "Siemens", "Volt", "Tesla"], c: 1, exp: "El Siemens (G) es el recíproco de la resistencia (R)." }
-                ]},
-                { id: 'm2', title: 'Componentes Pasivos', icon: 'microchip', xp: 600, q: [
-                    { q: "¿Qué almacena un inductor?", a: ["Campo Eléctrico", "Campo Magnético", "Calor", "Fotones"], c: 1, exp: "L almacena energía en forma de flujo magnético." },
-                    { q: "Capacitores en serie:", a: ["Se suman", "Disminuye la total", "No cambian", "Se queman"], c: 1, exp: "1/Ct = 1/C1 + 1/C2..." }
-                ]},
-                // Generación de fases hasta completar 15
-                ...Array.from({length: 13}, (_, i) => ({
-                    id: `m${i+3}`,
-                    title: `Ingeniería Avanzada F${i+1}`,
-                    icon: 'gear',
-                    xp: 800 + (i * 100),
-                    q: [
-                        { q: "¿Análisis de respuesta en frecuencia?", a: ["Bode", "Fourier", "Laplace", "Todos"], c: 3, exp: "Las herramientas de control son vitales para diseño estable." },
-                        { q: "¿Qué es el ruido térmico?", a: ["Agitación de electrones", "Calor solar", "Ventiladores", "Vibración"], c: 0, exp: "Conocido como ruido Johnson-Nyquist." }
-                    ]
-                }))
+        /**
+         * DB: CONTENIDO DE INGENIERÍA MASIVO (30 Módulos Simulados)
+         * En un entorno real, esto se cargaría de un JSON externo.
+         */
+        const MODULES_DB = Array.from({length: 30}, (_, i) => ({
+            id: i + 1,
+            title: [
+                "Ley de Ohm Avanzada", "Teoría de Nodos y Mallas", "Semiconductores P-N", 
+                "Arquitectura de Transistores", "Amplificadores Operacionales", "Filtros Activos",
+                "Electrónica de Potencia", "Microcontroladores RISC-V", "Protocolos I2C/SPI",
+                "Procesamiento de Señales", "Diseño de PCB Multicapa", "EMI y Shielding",
+                "Fuentes Conmutadas", "Sensores Industriales", "Control PID Analógico"
+            ][i % 15] + (i >= 15 ? " II" : ""),
+            icon: ["bolt", "microchip", "wave-square", "plug", "microscope", "cog"][i % 6],
+            xp: 250 + (i * 50),
+            questions: [
+                {
+                    q: "¿Qué parámetro de un MOSFET define la resistencia entre Drenaje y Fuente en saturación?",
+                    a: ["Vgs(th)", "Rds(on)", "Gm", "Ciss"],
+                    c: 1,
+                    exp: "La Rds(on) es crítica para el cálculo de pérdidas por conducción en transistores de potencia."
+                },
+                {
+                    q: "¿Qué configuración de Op-Amp tiene impedancia de entrada infinita (idealmente)?",
+                    a: ["Inversor", "No Inversor", "Diferencial", "Sumador"],
+                    c: 1,
+                    exp: "En el No Inversor, la señal entra directamente al terminal de alta impedancia del operacional."
+                },
+                {
+                    q: "¿Cuál es el propósito del plano de masa (GND Plane) en una PCB de alta frecuencia?",
+                    a: ["Ahorrar cobre", "Reducir inductancia de retorno y EMI", "Decoración", "Disipar calor únicamente"],
+                    c: 1,
+                    exp: "Un plano sólido reduce los bucles de corriente, minimizando la interferencia electromagnética."
+                }
             ]
-        };
+        }));
 
+        /**
+         * STATE MANAGEMENT
+         */
         const state = {
-            xp: parseInt(localStorage.getItem('ae_v5_xp')) || 0,
+            xp: parseInt(localStorage.getItem('ae_v6_xp')) || 0,
             lives: 3,
-            completed: JSON.parse(localStorage.getItem('ae_v5_done')) || [],
-            correct: parseInt(localStorage.getItem('ae_v5_h')) || 0,
-            wrong: parseInt(localStorage.getItem('ae_v5_f')) || 0,
-            
+            completed: JSON.parse(localStorage.getItem('ae_v6_done')) || [],
+            correct: parseInt(localStorage.getItem('ae_v6_hits')) || 0,
+            wrong: parseInt(localStorage.getItem('ae_v6_miss')) || 0,
+            streak: parseInt(localStorage.getItem('ae_v6_streak')) || 1,
+            lastDate: localStorage.getItem('ae_v6_date') || new Date().toDateString(),
+
             save() {
-                localStorage.setItem('ae_v5_xp', this.xp);
-                localStorage.setItem('ae_v5_done', JSON.stringify(this.completed));
-                localStorage.setItem('ae_v5_h', this.correct);
-                localStorage.setItem('ae_v5_f', this.wrong);
+                localStorage.setItem('ae_v6_xp', this.xp);
+                localStorage.setItem('ae_v6_done', JSON.stringify(this.completed));
+                localStorage.setItem('ae_v6_hits', this.correct);
+                localStorage.setItem('ae_v6_miss', this.wrong);
+                localStorage.setItem('ae_v6_streak', this.streak);
+                localStorage.setItem('ae_v6_date', this.lastDate);
             },
+
+            getLevel() { return Math.floor(this.xp / 1000) + 1; },
             getRank() {
-                if (this.xp > 10000) return "MAESTRO INGENIERO";
-                if (this.xp > 5000) return "INGENIEIRO SENIOR";
-                if (this.xp > 2000) return "TÉCNICO ESPECIALISTA";
-                return "NOVATO";
+                const lv = this.getLevel();
+                if (lv > 20) return "Ingeniero Élite";
+                if (lv > 15) return "Ingeniero Maestro";
+                if (lv > 10) return "Senior Specialist";
+                if (lv > 5) return "Técnico Avanzado";
+                return "Ingeniero Novato";
             }
         };
 
-        const app = {
+        /**
+         * UI CONTROLLER
+         */
+        const ui = {
             init() {
-                this.updateUI();
+                this.updateGlobalStats();
                 this.renderMap();
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.opacity = '0';
+                    setTimeout(() => document.getElementById('loading-screen').remove(), 700);
+                }, 1500);
                 this.initPayPal();
             },
 
-            updateUI() {
-                document.getElementById('header-xp').innerText = state.xp.toLocaleString();
-                document.getElementById('header-lives').innerText = state.lives;
-                document.getElementById('user-rank').innerText = `RANGO: ${state.getRank()}`;
-                document.getElementById('stat-progress').innerText = `${state.completed.length}/${DB.modules.length}`;
+            updateGlobalStats() {
+                document.getElementById('stat-xp').innerText = state.xp.toLocaleString();
+                document.getElementById('stat-lives').innerText = state.lives;
+                document.getElementById('user-lv').innerText = state.getLevel();
+                document.getElementById('rank-name').innerText = state.getRank();
+                document.getElementById('dash-correct').innerText = state.correct;
                 
                 const total = state.correct + state.wrong;
                 const acc = total > 0 ? Math.round((state.correct / total) * 100) : 0;
-                document.getElementById('stat-accuracy').innerText = `${acc}%`;
+                document.getElementById('dash-accuracy').innerText = acc + "%";
+
+                const progress = (state.xp % 1000) / 10;
+                document.getElementById('lv-progress').style.width = progress + "%";
             },
 
             renderMap() {
                 const container = document.getElementById('map-render');
-                container.innerHTML = '<svg class="svg-connector" id="svg-paths"></svg>';
-                let pathD = "M 250 0 ";
-                const stepY = 120;
-
-                DB.modules.forEach((mod, i) => {
+                container.innerHTML = '<div class="path-line"></div>';
+                
+                MODULES_DB.forEach((mod, i) => {
                     const isDone = state.completed.includes(mod.id);
-                    const isLocked = i > 0 && !state.completed.includes(DB.modules[i-1].id);
+                    const isLocked = i > 0 && !state.completed.includes(MODULES_DB[i-1].id);
                     const isCurrent = !isDone && !isLocked;
 
-                    const posX = 250 + Math.sin(i * 1.2) * 70;
-                    const posY = i * stepY + 60;
-
-                    if(i > 0) {
-                        const prevX = 250 + Math.sin((i-1) * 1.2) * 70;
-                        const prevY = (i-1) * stepY + 60;
-                        pathD += `C ${prevX} ${prevY + 50}, ${posX} ${posY - 50}, ${posX} ${posY} `;
-                    }
-
-                    const wrap = document.createElement('div');
-                    wrap.className = "node-wrapper";
-                    wrap.style.transform = `translateX(${Math.sin(i * 1.2) * 70}px)`;
+                    const item = document.createElement('div');
+                    item.className = "node-item";
                     
-                    const node = document.createElement('div');
-                    node.className = `node ${isDone ? 'completed' : (isCurrent ? 'current' : 'locked')}`;
-                    node.innerHTML = isDone ? '<i class="fas fa-check"></i>' : `<i class="fas fa-${mod.icon}"></i>`;
+                    // Zig-zag offset
+                    const offset = Math.sin(i * 1.5) * 50;
                     
-                    if(!isLocked) node.onclick = () => quizEngine.start(mod);
-
-                    const label = document.createElement('div');
-                    label.className = "absolute -bottom-8 font-black text-[9px] uppercase tracking-tighter text-slate-500 text-center w-32";
-                    label.innerText = mod.title;
-
-                    node.appendChild(label);
-                    wrap.appendChild(node);
-                    container.appendChild(wrap);
+                    item.innerHTML = `
+                        <button onclick="quizEngine.start(${mod.id})" 
+                                class="node-btn ${isDone ? 'completed' : (isCurrent ? 'current' : 'locked')}"
+                                style="transform: translateX(${offset}px)">
+                            <i class="fas fa-${isDone ? 'check' : mod.icon}"></i>
+                        </button>
+                        <div class="mt-4 text-[10px] font-black uppercase text-slate-500 text-center w-32"
+                             style="transform: translateX(${offset}px)">
+                            ${mod.title}
+                        </div>
+                    `;
+                    container.appendChild(item);
                 });
-
-                document.getElementById('svg-paths').innerHTML = `<path d="${pathD}" stroke="#1e293b" stroke-width="8" fill="none" stroke-linecap="round"/>`;
-
-                if(state.completed.length === DB.modules.length) this.switchScreen('screen-cert');
             },
 
-            switchScreen(id) {
+            switch(screenId) {
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-                document.getElementById(id).classList.add('active');
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                
+                document.getElementById(screenId).classList.add('active');
+                
+                const navKey = screenId.replace('screen-', 'nav-');
+                const navEl = document.getElementById(navKey);
+                if(navEl) navEl.classList.add('active');
+
+                if(screenId === 'screen-cert') this.initPayPal();
             },
 
             initPayPal() {
+                const container = document.getElementById('paypal-btn');
+                container.innerHTML = '';
                 if(!window.paypal) return;
+                
                 paypal.Buttons({
                     style: { shape: 'pill', color: 'blue', layout: 'vertical', label: 'pay' },
                     createOrder: (data, actions) => {
                         return actions.order.create({
-                            purchase_units: [{ amount: { value: '100.00' }, description: 'Certificación Profesional Aprendeelectronica V5' }]
+                            purchase_units: [{ amount: { value: '100.00' }, description: 'Certificación Aprendeelectronica Elite V6' }]
                         });
                     },
                     onApprove: (data, actions) => {
                         return actions.order.capture().then(details => {
-                            const name = prompt("¡Pago Aprobado! Ingrese su nombre completo para el certificado:");
-                            if(name) certificateLogic.generate(name);
+                            const name = prompt("Pago Exitoso. Ingrese su Nombre Completo para el Título:");
+                            if(name) certService.generate(name);
                         });
                     }
-                }).render('#paypal-button-container');
-            },
-
-            reset() {
-                if(confirm("¿Seguro? Se borrará todo el historial de ingeniería.")) {
-                    localStorage.clear();
-                    location.reload();
-                }
+                }).render('#paypal-btn');
             }
         };
 
+        /**
+         * QUIZ ENGINE
+         */
         const quizEngine = {
-            mod: null,
-            questions: [],
-            idx: 0,
+            activeMod: null,
+            index: 0,
             selected: null,
+            tempLives: 3,
 
-            start(mod) {
-                this.mod = mod;
-                this.questions = [...mod.q].sort(() => Math.random() - 0.5);
-                this.idx = 0;
-                state.lives = 3;
-                app.updateUI();
-                app.switchScreen('screen-quiz');
-                this.load();
+            start(modId) {
+                const mod = MODULES_DB.find(m => m.id === modId);
+                if(!mod || (modId > 1 && !state.completed.includes(modId - 1))) return;
+                
+                this.activeMod = mod;
+                this.index = 0;
+                this.tempLives = 3;
+                
+                document.getElementById('screen-quiz').classList.remove('hidden');
+                document.getElementById('screen-quiz').classList.add('flex');
+                this.loadQuestion();
             },
 
-            load() {
-                const q = this.questions[this.idx];
+            loadQuestion() {
+                const q = this.activeMod.questions[this.index];
+                this.selected = null;
+                
                 document.getElementById('q-text').innerText = q.q;
-                document.getElementById('quiz-step').innerText = `${this.idx + 1}/${this.questions.length}`;
-                document.getElementById('quiz-progress').style.width = `${(this.idx / this.questions.length) * 100}%`;
+                document.getElementById('q-count').innerText = `${this.index + 1}/${this.activeMod.questions.length}`;
+                document.getElementById('q-bar').style.width = `${(this.index / this.activeMod.questions.length) * 100}%`;
                 
                 const optBox = document.getElementById('q-options');
                 optBox.innerHTML = '';
                 
-                q.a.forEach((txt, i) => {
+                q.a.forEach((opt, i) => {
                     const btn = document.createElement('button');
-                    btn.className = "option-btn";
-                    btn.innerHTML = `<span class="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-[10px] text-slate-500 font-bold border border-slate-700">${String.fromCharCode(65+i)}</span> ${txt}`;
+                    btn.className = "option-card";
+                    btn.innerHTML = `
+                        <div class="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center font-bold text-slate-500 border border-slate-800">${String.fromCharCode(65+i)}</div>
+                        <span class="font-semibold text-slate-200">${opt}</span>
+                    `;
                     btn.onclick = () => this.select(i, btn);
                     optBox.appendChild(btn);
                 });
 
-                document.getElementById('btn-check').disabled = true;
-                document.getElementById('feedback-drawer').classList.remove('active');
+                document.getElementById('quiz-feedback').classList.add('translate-y-full');
             },
 
             select(i, btn) {
+                if(this.selected !== null) return;
                 this.selected = i;
-                document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected', 'border-blue-500'));
-                btn.classList.add('selected', 'border-blue-500');
-                document.getElementById('btn-check').disabled = false;
-                document.getElementById('btn-check').classList.add('bg-blue-600', 'text-white');
-            },
+                const q = this.activeMod.questions[this.index];
+                const isCorrect = i === q.c;
 
-            check() {
-                const q = this.questions[this.idx];
-                const isCorrect = this.selected === q.c;
-                const drawer = document.getElementById('feedback-drawer');
-
+                // Visual Feedback
+                btn.classList.add(isCorrect ? 'correct' : 'wrong');
+                
                 if(isCorrect) {
                     state.correct++;
-                    document.getElementById('f-icon').className = "w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl";
-                    document.getElementById('f-icon').innerHTML = '<i class="fas fa-check"></i>';
-                    document.getElementById('f-title').innerText = "¡CORRECTO!";
-                    document.getElementById('f-title').className = "text-xl font-black text-emerald-500";
+                    document.getElementById('fb-icon').className = "w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-2xl shadow-lg";
+                    document.getElementById('fb-icon').innerHTML = '<i class="fas fa-check"></i>';
+                    document.getElementById('fb-title').innerText = "¡Excelente Análisis!";
+                    document.getElementById('fb-title').className = "text-xl font-black text-emerald-500";
                 } else {
                     state.wrong++;
-                    state.lives--;
-                    app.updateUI();
-                    document.getElementById('f-icon').className = "w-12 h-12 rounded-full bg-rose-500 text-white flex items-center justify-center text-xl";
-                    document.getElementById('f-icon').innerHTML = '<i class="fas fa-times"></i>';
-                    document.getElementById('f-title').innerText = "ERROR TÉCNICO";
-                    document.getElementById('f-title').className = "text-xl font-black text-rose-500";
+                    this.tempLives--;
+                    state.lives = Math.max(0, state.lives - 1);
+                    document.getElementById('fb-icon').className = "w-14 h-14 rounded-2xl bg-rose-500 text-white flex items-center justify-center text-2xl shadow-lg";
+                    document.getElementById('fb-icon').innerHTML = '<i class="fas fa-times"></i>';
+                    document.getElementById('fb-title').innerText = "Falla de Sistema";
+                    document.getElementById('fb-title').className = "text-xl font-black text-rose-500";
                 }
 
-                document.getElementById('f-body').innerText = q.exp;
-                drawer.classList.add('active');
-                document.getElementById('btn-next').onclick = () => this.next();
-            },
+                document.getElementById('fb-body').innerText = q.exp;
+                document.getElementById('quiz-feedback').classList.remove('translate-y-full');
+                ui.updateGlobalStats();
 
-            next() {
-                if(state.lives <= 0) {
-                    alert("SISTEMA BLOQUEADO: Agotaste tus vidas. Repasa y reintenta.");
-                    this.exit();
-                    return;
-                }
-                this.idx++;
-                if(this.idx >= this.questions.length) {
-                    if(!state.completed.includes(this.mod.id)) {
-                        state.completed.push(this.mod.id);
-                        state.xp += this.mod.xp;
+                document.getElementById('btn-continue').onclick = () => {
+                    if(this.tempLives <= 0) {
+                        alert("Has fallado demasiadas veces en este módulo. Repasa la teoría.");
+                        this.exit();
+                    } else {
+                        this.index++;
+                        if(this.index >= this.activeMod.questions.length) {
+                            this.finish();
+                        } else {
+                            this.loadQuestion();
+                        }
                     }
-                    state.save();
-                    confetti({ particleCount: 150, spread: 70 });
-                    this.exit();
-                } else {
-                    this.load();
+                };
+            },
+
+            finish() {
+                if(!state.completed.includes(this.activeMod.id)) {
+                    state.completed.push(this.activeMod.id);
+                    state.xp += this.activeMod.xp;
                 }
+                state.save();
+                confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
+                this.exit();
             },
 
-            confirmExit() { if(confirm("¿Abandonar fase?")) this.exit(); },
-            exit() { app.switchScreen('screen-map'); app.init(); }
-        };
-
-        const certificateLogic = {
-            async generate(name) {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'mm', 'a4');
-                const folio = "APRE-" + Date.now().toString(36).toUpperCase();
-                const hash = btoa(name + folio).substring(0, 10).toUpperCase();
-
-                const qrBox = document.getElementById('qrcode-container');
-                qrBox.innerHTML = '';
-                new QRCode(qrBox, { text: `https://aprendeelectronica.com/v5/verify?folio=${folio}&h=${hash}`, width: 150, height: 150 });
-
-                setTimeout(() => {
-                    const qrImg = qrBox.querySelector('img').src;
-                    this.renderPDF(doc, name, folio, hash, qrImg);
-                }, 500);
-            },
-
-            renderPDF(doc, name, folio, hash, qr) {
-                const w = 297, h = 210;
-                doc.setFillColor(15, 23, 42); doc.rect(0, 0, w, h, 'F');
-                doc.setDrawColor(30, 41, 59);
-                for(let i=0; i<w; i+=10) { doc.line(i, 0, i, h); doc.line(0, i, w, i); }
-                doc.setDrawColor(59, 130, 246); doc.setLineWidth(1.5); doc.rect(10, 10, w-20, h-20);
-                
-                doc.setTextColor(255, 255, 255); doc.setFontSize(35); doc.text("DIPLOMA DE EXCELENCIA TÉCNICA", w/2, 45, null, null, "center");
-                doc.setFontSize(14); doc.setTextColor(148, 163, 184); doc.text("POR HABER COMPLETADO EL NIVEL DE MAESTRÍA EN:", w/2, 70, null, null, "center");
-                doc.setFontSize(45); doc.setTextColor(59, 130, 246); doc.text(name.toUpperCase(), w/2, 105, null, null, "center");
-                doc.setFontSize(12); doc.setTextColor(241, 245, 249);
-                doc.text("Enfoque: Diseño de Circuitos, Microelectrónica y Sistemas de Potencia.", w/2, 135, null, null, "center");
-
-                doc.addImage(qr, 'PNG', 20, 150, 35, 35);
-                doc.setTextColor(100, 116, 139); doc.setFontSize(8);
-                doc.text(`FOLIO: ${folio}`, 60, 165);
-                doc.text(`HASH DE SEGURIDAD: ${hash}`, 60, 172);
-                doc.text("VERIFICACIÓN CURRICULAR CON CÓDIGO QR", 60, 179);
-                
-                doc.setDrawColor(255,255,255); doc.line(w-80, 170, w-20, 170);
-                doc.text("DIRECCIÓN ACADÉMICA", w-50, 178, null, null, "center");
-                doc.text("APRENDEELECTRONICA V5", w-50, 184, null, null, "center");
-
-                doc.save(`Certificado_Pro_${name.replace(/\s+/g, '_')}.pdf`);
+            exit() {
+                document.getElementById('screen-quiz').classList.add('hidden');
+                document.getElementById('screen-quiz').classList.remove('flex');
+                ui.init();
             }
         };
 
-        window.onload = () => app.init();
+        /**
+         * CERTIFICATION SERVICE
+         */
+        const certService = {
+            async generate(userName) {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                const folio = "ELITE-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+                const date = new Date().toLocaleDateString();
+
+                // Generar QR
+                const qrCont = document.getElementById('qr-gen');
+                qrCont.innerHTML = '';
+                new QRCode(qrCont, {
+                    text: `https://aprendeelectronica.com/verify/${folio}`,
+                    width: 120, height: 120
+                });
+
+                // Esperar a que el QR se renderice
+                setTimeout(() => {
+                    const qrImg = qrCont.querySelector('img').src;
+                    this.drawPDF(doc, userName, folio, date, qrImg);
+                }, 600);
+            },
+
+            drawPDF(doc, name, folio, date, qr) {
+                const w = 297, h = 210;
+                
+                // Fondo Oscuro Elegante
+                doc.setFillColor(15, 23, 42);
+                doc.rect(0, 0, w, h, 'F');
+                
+                // Bordes de Oro
+                doc.setDrawColor(245, 158, 11);
+                doc.setLineWidth(2);
+                doc.rect(10, 10, w-20, h-20);
+                
+                // Títulos
+                doc.setTextColor(245, 158, 11);
+                doc.setFontSize(38);
+                doc.text("APRENDEELECTRONICA ELITE", w/2, 45, null, null, "center");
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(16);
+                doc.text("CERTIFICADO DE COMPETENCIA PROFESIONAL", w/2, 60, null, null, "center");
+                
+                doc.setFontSize(12);
+                doc.setTextColor(148, 163, 184);
+                doc.text("ESTE TÍTULO SE OTORGA A:", w/2, 85, null, null, "center");
+                
+                doc.setTextColor(59, 130, 246);
+                doc.setFontSize(48);
+                doc.text(name.toUpperCase(), w/2, 115, null, null, "center");
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(14);
+                doc.text("Por haber demostrado conocimientos avanzados en el diseño,", w/2, 140, null, null, "center");
+                doc.text("análisis y validación de sistemas electrónicos industriales.", w/2, 148, null, null, "center");
+
+                // QR y Folio
+                doc.addImage(qr, 'PNG', 240, 150, 35, 35);
+                doc.setFontSize(8);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`FOLIO ÚNICO: ${folio}`, 20, 180);
+                doc.text(`FECHA DE EMISIÓN: ${date}`, 20, 185);
+                doc.text("VERIFICACIÓN DIGITAL DISPONIBLE ESCANEANDO EL QR", 20, 190);
+
+                doc.save(`Certificado_Elite_${name.replace(/\s+/g, '_')}.pdf`);
+            }
+        };
+
+        // Boot
+        window.onload = () => ui.init();
     </script>
 </body>
 </html>
