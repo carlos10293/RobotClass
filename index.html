@@ -1,507 +1,372 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElectroMaster V3 - Pro Learning</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReparaPro Elite Academy | Sistema de Gestión</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- SDK de Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIGURACIÓN REAL DEL USUARIO
+        const firebaseConfig = {
+            apiKey: "AIzaSyACidwxVX3idvV2LLZ8gnwpa6Pq_cTv28I",
+            authDomain: "roboclass-40e9b.firebaseapp.com",
+            projectId: "roboclass-40e9b",
+            storageBucket: "roboclass-40e9b.firebasestorage.app",
+            messagingSenderId: "694414730253",
+            appId: "1:694414730253:web:0e9622b349d7596e58e144",
+            measurementId: "G-G18N3386PW"
+        };
+
+        const appId = "roboclass-40e9b"; // Usamos tu Project ID como identificador de la app
+
+        // Inicialización
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Variables Globales de Estado
+        window.user = null;
+        window.userProgress = {
+            modulesCompleted: [],
+            examPassed: false,
+            certId: null
+        };
+
+        // --- FUNCIONES DE AUTENTICACIÓN ---
+        window.handleAuthAction = async (type) => {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            const name = document.getElementById('auth-name').value;
+
+            if (!email || !pass) return showToast("Email y contraseña requeridos", "error");
+
+            try {
+                if (type === 'signup') {
+                    if (!name) return showToast("Nombre requerido para el registro", "error");
+                    const res = await createUserWithEmailAndPassword(auth, email, pass);
+                    
+                    // Guardar perfil en Firestore bajo la ruta segura de la Fase 1
+                    // Ruta: /artifacts/{appId}/users/{userId}/profile
+                    await setDoc(doc(db, 'artifacts', appId, 'users', res.user.uid, 'profile'), {
+                        displayName: name,
+                        email: email,
+                        progress: { modulesCompleted: [], examPassed: false, certId: null },
+                        enrolledAt: new Date().toISOString()
+                    });
+                    showToast("Cuenta creada con éxito", "success");
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                    showToast("Bienvenido de nuevo", "success");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Error: " + err.code, "error");
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+        // --- OBSERVADOR DE ESTADO (EL CORAZÓN DE LA APP) ---
+        onAuthStateChanged(auth, async (u) => {
+            window.user = u;
+            const landing = document.getElementById('landing-section');
+            const appView = document.getElementById('app-section');
+
+            if (u) {
+                landing.classList.add('hidden');
+                appView.classList.remove('hidden');
+                
+                // Cargar datos del perfil en tiempo real
+                const docRef = doc(db, 'artifacts', appId, 'users', u.uid, 'profile');
+                onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        window.userProgress = data.progress;
+                        document.getElementById('user-display-name').innerText = data.displayName || u.email;
+                        updateUIProgress();
+                    }
+                }, (error) => {
+                    console.error("Error cargando perfil:", error);
+                });
+
+            } else {
+                landing.classList.remove('hidden');
+                appView.classList.add('hidden');
+            }
+        });
+
+        // --- PERSISTENCIA DE PROGRESO ---
+        window.markModuleComplete = async (moduleId) => {
+            if (!window.user) return;
+            const completed = [...(window.userProgress.modulesCompleted || [])];
+            
+            if (!completed.includes(moduleId)) {
+                completed.push(moduleId);
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile');
+                    await updateDoc(docRef, { "progress.modulesCompleted": completed });
+                    showToast("¡Lección completada!", "success");
+                } catch (e) {
+                    showToast("Error al guardar progreso", "error");
+                }
+            }
+        };
+
+        window.saveExamResult = async (officialName) => {
+            if (!window.user) return;
+            const certId = `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile');
+                await updateDoc(docRef, { 
+                    "progress.examPassed": true,
+                    "progress.certId": certId,
+                    "displayName": officialName 
+                });
+                return certId;
+            } catch (e) {
+                showToast("Error al emitir certificado", "error");
+            }
+        };
+    </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=JetBrains+Mono&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        :root { --primary: #3b82f6; --dark: #0f172a; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--dark); color: white; margin: 0; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+        .module-card.completed { border-left: 4px solid #10b981; }
+        .module-card.completed i.fa-check-circle { color: #10b981; }
         
-        :root {
-            --primary: #3b82f6;
-            --success: #58cc02;
-            --error: #ff4b4b;
-            --warning: #ffc800;
-            --bg-dark: #0f172a;
+        /* Estilos para impresión del certificado */
+        @media print {
+            body * { visibility: hidden; }
+            #cert-print-area, #cert-print-area * { visibility: visible; }
+            #cert-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
         }
-
-        body { 
-            font-family: 'Nunito', sans-serif; 
-            background-color: var(--bg-dark); 
-            color: white;
-            user-select: none;
-            overflow-x: hidden;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .node {
-            width: 85px;
-            height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border-bottom: 8px solid rgba(0,0,0,0.3);
-            z-index: 10;
-        }
-
-        .node:active { transform: translateY(4px); border-bottom-width: 4px; }
-        .node-locked { background: #334155; color: #64748b; cursor: not-allowed; border-bottom: 8px solid #1e293b; }
-        .node-active { background: var(--primary); color: white; border-bottom-color: #1d4ed8; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
-        .node-completed { background: var(--success); color: white; border-bottom-color: #46a302; }
-
-        .path-line {
-            position: absolute;
-            width: 4px;
-            background: #334155;
-            z-index: 1;
-            transform-origin: top center;
-        }
-
-        .option-btn {
-            background: #1e293b;
-            border: 2px solid #334155;
-            border-bottom: 5px solid #334155;
-            transition: all 0.1s;
-        }
-
-        .option-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
-        .option-btn.selected { border-color: var(--primary); background: rgba(59, 130, 246, 0.1); }
-        
-        .feedback-panel {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 2rem;
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 50;
-        }
-        .feedback-panel.show { transform: translateY(0); }
-
-        @keyframes heart-pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
-        .heart-pop { animation: heart-pop 0.3s ease-out; }
-
-        /* Scrollbar hide */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="no-scrollbar">
+<body>
 
-    <!-- Top Navigation -->
-    <nav class="fixed top-0 left-0 right-0 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 z-40 px-4 py-3">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-bolt text-yellow-400 text-xl"></i>
-                <span id="stat-xp" class="font-black text-lg">0</span>
+    <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-x-full transition-all duration-300 p-4 rounded-xl shadow-2xl font-bold"></div>
+
+    <!-- SECCIÓN: ACCESO -->
+    <section id="landing-section" class="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-900 to-slate-900">
+        <div class="max-w-md w-full space-y-8">
+            <div class="text-center">
+                <div class="inline-block p-4 bg-blue-600 rounded-3xl shadow-2xl shadow-blue-500/20 mb-6">
+                    <i class="fas fa-microchip text-4xl"></i>
+                </div>
+                <h1 class="text-4xl font-black tracking-tighter mb-2">REPARAPRO <span class="text-blue-500">ELITE</span></h1>
+                <p class="text-slate-400">Ingresa a tu panel de formación técnica</p>
             </div>
-            <div class="flex-1 mx-8 h-3 bg-slate-800 rounded-full overflow-hidden">
-                <div id="master-progress" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500" style="width: 0%"></div>
+
+            <div class="glass p-8 rounded-[2.5rem] space-y-4">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Nombre Completo (Solo nuevos)</label>
+                    <input type="text" id="auth-name" class="w-full bg-slate-800/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition" placeholder="Juan Pérez">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Correo Electrónico</label>
+                    <input type="email" id="auth-email" class="w-full bg-slate-800/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition" placeholder="tu@email.com">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Contraseña</label>
+                    <input type="password" id="auth-pass" class="w-full bg-slate-800/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition" placeholder="••••••••">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 pt-4">
+                    <button onclick="handleAuthAction('login')" class="bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-bold transition">Entrar</button>
+                    <button onclick="handleAuthAction('signup')" class="bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold transition shadow-lg shadow-blue-600/20">Registrar</button>
+                </div>
             </div>
-            <div class="flex items-center space-x-2">
-                <i id="heart-icon" class="fas fa-heart text-red-500 text-xl"></i>
-                <span id="stat-lives" class="font-black text-lg">5</span>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Map View -->
-    <main id="view-map" class="pt-24 pb-32 min-h-screen relative flex flex-col items-center">
-        <!-- Content will be injected by JS -->
-    </main>
-
-    <!-- Quiz View (Hidden by default) -->
-    <section id="view-quiz" class="fixed inset-0 bg-slate-950 z-50 hidden flex flex-col">
-        <header class="p-4 flex items-center justify-between border-b border-slate-900">
-            <button onclick="ui.exitQuiz()" class="text-slate-400 text-2xl p-2"><i class="fas fa-times"></i></button>
-            <div class="flex-1 mx-4 h-2 bg-slate-900 rounded-full">
-                <div id="quiz-progress" class="h-full bg-green-500 rounded-full transition-all" style="width: 0%"></div>
-            </div>
-            <div class="w-10"></div>
-        </header>
-
-        <div id="quiz-content" class="flex-1 overflow-y-auto p-6 flex flex-col max-w-xl mx-auto w-full">
-            <!-- Questions injected here -->
-        </div>
-
-        <div id="quiz-footer" class="p-6 border-t border-slate-900 bg-slate-950">
-            <button id="check-btn" onclick="quizEngine.checkAnswer()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest border-b-4 border-blue-800 transition-all active:translate-y-1 active:border-b-0">
-                Comprobar
-            </button>
         </div>
     </section>
 
-    <!-- Feedback Panel -->
-    <div id="feedback-panel" class="feedback-panel">
-        <div class="max-w-xl mx-auto flex flex-col space-y-4">
-            <div class="flex items-center space-x-4">
-                <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"></div>
-                <h3 id="feedback-title" class="text-2xl font-black"></h3>
+    <!-- SECCIÓN: DASHBOARD -->
+    <section id="app-section" class="hidden min-h-screen">
+        <nav class="glass sticky top-0 z-50 px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-microchip text-blue-500 text-xl"></i>
+                <span class="font-black tracking-tight text-xl">REPARAPRO</span>
             </div>
-            <p id="feedback-text" class="text-lg opacity-90"></p>
-            <button onclick="quizEngine.nextQuestion()" class="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-95">
-                Continuar
-            </button>
-        </div>
-    </div>
-
-    <!-- Certification Modal -->
-    <div id="cert-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-6">
-        <div class="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-sm w-full text-center space-y-6">
-            <div class="text-6xl text-yellow-500 animate-bounce">🏆</div>
-            <h2 class="text-3xl font-black uppercase italic">¡Nivel Superado!</h2>
-            <p class="text-slate-400">Has demostrado maestría en este módulo. ¿Deseas descargar tu certificado?</p>
-            <div class="flex flex-col space-y-3">
-                <button onclick="certificateLogic.download()" class="w-full py-4 bg-green-600 rounded-xl font-bold flex items-center justify-center space-x-2">
-                    <i class="fas fa-file-pdf"></i> <span>Descargar PDF</span>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden sm:block">
+                    <p id="user-display-name" class="text-sm font-bold leading-none"></p>
+                    <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Estudiante Elite</span>
+                </div>
+                <button onclick="logout()" class="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition">
+                    <i class="fas fa-sign-out-alt"></i>
                 </button>
-                <button onclick="ui.closeCert()" class="w-full py-4 bg-slate-800 rounded-xl font-bold">Volver al Mapa</button>
             </div>
-        </div>
-    </div>
+        </nav>
 
-    <script>
-        // --- DATABASE ---
-        const LEVELS = [
-            {
-                id: 'mod1',
-                title: 'Fundamentos Eléctricos',
-                icon: 'fa-plug',
-                xp: 100,
-                questions: [
-                    { q: "¿Qué es la corriente eléctrica?", o: ["Flujo de electrones","Voltaje","Resistencia"], a: "Flujo de electrones", correctText: "Correcto, la corriente es el flujo de electrones en un conductor.", wrongText: "Incorrecto, la corriente eléctrica se refiere al flujo de electrones." },
-                    { q: "Unidad de la resistencia eléctrica:", o: ["Ohmio","Faradio","Henrio"], a: "Ohmio", correctText: "Bien, la resistencia se mide en Ohmios (Ω).", wrongText: "Error, la resistencia se mide en Ohmios (Ω)." },
-                    { q: "¿Para qué sirve un diodo rectificador?", o: ["Amplificar","Convertir AC a DC","Subir voltaje"], a: "Convertir AC a DC", correctText: "Exacto, convierte corriente alterna en corriente continua.", wrongText: "No, un diodo rectificador convierte AC en DC." },
-                    { q: "¿Qué componente almacena energía en un campo magnético?", o: ["Resistencia","Inductor","Capacitor"], a: "Inductor", correctText: "Correcto, los inductores almacenan energía en campos magnéticos.", wrongText: "Incorrecto, el componente que almacena energía en un campo magnético es un inductor." },
-                    { q: "Símbolo de un capacitor:", o: ["| |","--|","--o--"], a: "| |", correctText: "Exacto, este símbolo representa un capacitor.", wrongText: "No, el símbolo correcto de un capacitor es | |." },
-                    { q: "¿Qué hace un resistor en un circuito?", o: ["Limita corriente","Aumenta voltaje","Almacena energía"], a: "Limita corriente", correctText: "Correcto, un resistor limita la corriente según la Ley de Ohm.", wrongText: "Error, un resistor limita la corriente en un circuito." },
-                    { q: "Unidad del capacitor:", o: ["Faradio","Henrio","Ohmio"], a: "Faradio", correctText: "Correcto, la unidad de un capacitor es el Faradio (F).", wrongText: "Incorrecto, los capacitores se miden en Faradios." },
-                    { q: "Unidad de inductancia:", o: ["Ohmio","Henrio","Faradio"], a: "Henrio", correctText: "Bien, los inductores se miden en Henrios (H).", wrongText: "Error, la inductancia se mide en Henrios (H)." },
-                    { q: "¿Qué hace un LED?", o: ["Emite luz","Almacena energía","Amplifica"], a: "Emite luz", correctText: "Exacto, un LED emite luz cuando pasa corriente.", wrongText: "No, un LED es un diodo que emite luz al pasar corriente." },
-                    { q: "Símbolo de diodo:", o: ["→|","||","--"], a: "→|", correctText: "Correcto, este es el símbolo de un diodo.", wrongText: "No, el símbolo correcto de un diodo es →|." }
-                ]
-            },
-            {
-                id: 'mod2',
-                title: 'Leyes y Circuitos',
-                icon: 'fa-microchip',
-                xp: 150,
-                questions: [
-                    { q: "Ley de Ohm:", o: ["V=IR","P=VI","E=MC2"], a: "V=IR", correctText: "Bien, la Ley de Ohm establece que V=IR.", wrongText: "Incorrecto, la Ley de Ohm es V=IR." },
-                    { q: "¿Qué es un circuito en serie?", o: ["Resistencias consecutivas","Resistencias paralelas","Un solo resistor"], a: "Resistencias consecutivas", correctText: "Exacto, en serie los componentes se conectan uno tras otro.", wrongText: "No, en serie los componentes se conectan uno tras otro." },
-                    { q: "¿Qué es un circuito en paralelo?", o: ["Resistencias consecutivas","Resistencias con mismos nodos","Un solo resistor"], a: "Resistencias con mismos nodos", correctText: "Correcto, en paralelo los extremos se conectan a los mismos nodos.", wrongText: "Incorrecto, en paralelo los componentes comparten nodos de conexión." },
-                    { q: "¿Qué hace un transformador?", o: ["Convierte voltaje","Almacena energía","Resiste corriente"], a: "Convierte voltaje", correctText: "Exacto, un transformador sube o baja voltaje en AC.", wrongText: "No, un transformador cambia el nivel de voltaje en corriente alterna." },
-                    { q: "¿Qué indica la potencia eléctrica?", o: ["Velocidad de electrones","Energía por tiempo","Resistencia"], a: "Energía por tiempo", correctText: "Bien, la potencia es energía por unidad de tiempo (P=VI).", wrongText: "Incorrecto, la potencia indica cuánta energía se consume por segundo." },
-                    { q: "Símbolo de tierra:", o: ["⊥","⏚","∩"], a: "⏚", correctText: "Correcto, este símbolo indica conexión a tierra.", wrongText: "No, el símbolo de tierra es ⏚." },
-                    { q: "¿Qué es un fusible?", o: ["Protección sobrecorriente","Almacén energía","Fuente de luz"], a: "Protección sobrecorriente", correctText: "Exacto, un fusible protege el circuito ante sobrecorriente.", wrongText: "Incorrecto, el fusible sirve para proteger el circuito ante sobrecorriente." },
-                    { q: "¿Qué indica un multímetro en modo V?", o: ["Voltaje","Corriente","Resistencia"], a: "Voltaje", correctText: "Correcto, mide el voltaje entre dos puntos.", wrongText: "No, V en el multímetro indica voltaje." },
-                    { q: "Función de un potenciómetro:", o: ["Resistencia variable","Fuente de luz","Amplificador"], a: "Resistencia variable", correctText: "Bien, un potenciómetro ajusta resistencia manualmente.", wrongText: "Error, un potenciómetro es una resistencia ajustable." },
-                    { q: "¿Qué es un capacitor electrolítico?", o: ["Polarizado","No polarizado","Resistor"], a: "Polarizado", correctText: "Correcto, tiene polaridad, cuidado al conectar.", wrongText: "No, un capacitor electrolítico es polarizado." }
-                ]
-            },
-            {
-                id: 'mod3',
-                title: 'Semiconductores',
-                icon: 'fa-transistor',
-                xp: 200,
-                questions: [
-                    { q: "¿Qué hace un diodo Zener?", o: ["Regula voltaje","Emite luz","Amplifica"], a: "Regula voltaje", correctText: "Bien, mantiene un voltaje constante en inversa.", wrongText: "Incorrecto, un diodo Zener se usa para regulación de voltaje." },
-                    { q: "¿Qué mide un amperímetro?", o: ["Corriente","Voltaje","Resistencia"], a: "Corriente", correctText: "Correcto, mide la corriente que pasa por un circuito.", wrongText: "No, un amperímetro mide la corriente eléctrica." },
-                    { q: "¿Qué mide un ohmímetro?", o: ["Resistencia","Voltaje","Corriente"], a: "Resistencia", correctText: "Bien, mide la resistencia de un componente.", wrongText: "Error, un ohmímetro mide resistencia." },
-                    { q: "¿Qué hace un transistor?", o: ["Amplifica","Almacena energía","Emite luz"], a: "Amplifica", correctText: "Correcto, puede amplificar señales.", wrongText: "Incorrecto, un transistor sirve para amplificar o conmutar señales." },
-                    { q: "Tipo de transistor NPN:", o: ["Corriente entra base positiva","Corriente entra base negativa","Solo corriente alterna"], a: "Corriente entra base positiva", correctText: "Exacto, la base recibe corriente positiva para conducir.", wrongText: "No, en NPN la corriente entra a la base positiva." },
-                    { q: "Tipo de transistor PNP:", o: ["Corriente entra base negativa","Corriente entra base positiva","Solo corriente alterna"], a: "Corriente entra base negativa", correctText: "Bien, en PNP la corriente entra a la base negativa.", wrongText: "No, en PNP la corriente debe entrar a la base negativa." },
-                    { q: "¿Qué hace un condensador?", o: ["Almacena carga eléctrica","Amplifica","Emite luz"], a: "Almacena carga eléctrica", correctText: "Correcto, los capacitores almacenan energía eléctrica temporalmente.", wrongText: "Incorrecto, los capacitores almacenan energía eléctrica." },
-                    { q: "¿Qué es un circuito RC?", o: ["Resistencia y Capacitor","Resistencia y Condensador","Solo resistencias"], a: "Resistencia y Capacitor", correctText: "Exacto, un circuito RC combina resistencia y capacitor.", wrongText: "No, un circuito RC combina resistor y capacitor." },
-                    { q: "¿Qué hace un relé?", o: ["Conmutar cargas","Emitir luz","Amplifica"], a: "Conmutar cargas", correctText: "Bien, un relé permite controlar un circuito con otro de baja potencia.", wrongText: "Error, un relé conmutará un circuito usando otro de control." },
-                    { q: "¿Qué es un potenciómetro?", o: ["Resistencia ajustable","Almacena energía","Emite luz"], a: "Resistencia ajustable", correctText: "Correcto, permite variar manualmente la resistencia en un circuito.", wrongText: "Incorrecto, un potenciómetro ajusta resistencia." }
-                ]
-            },
-            {
-                id: 'mod4',
-                title: 'Señales y Sistemas',
-                icon: 'fa-wave-square',
-                xp: 250,
-                questions: [
-                    { q: "¿Qué indica la polaridad de un diodo?", o: ["Dirección de corriente","Tensión","Resistencia"], a: "Dirección de corriente", correctText: "Exacto, la corriente solo fluye en una dirección.", wrongText: "No, un diodo solo permite paso de corriente en un sentido." },
-                    { q: "¿Qué es un SCR?", o: ["Diodo controlado por silicio","Resistencia especial","Capacitor avanzado"], a: "Diodo controlado por silicio", correctText: "Correcto, un SCR permite controlar grandes corrientes con un pulso de gate.", wrongText: "Incorrecto, un SCR es un diodo controlado por silicio." },
-                    { q: "¿Para qué sirve un fusible?", o: ["Protección del circuito","Emitir luz","Almacenar energía"], a: "Protección del circuito", correctText: "Exacto, corta la corriente en caso de sobrecarga.", wrongText: "No, su función es proteger el circuito." },
-                    { q: "¿Qué es un diodo LED?", o: ["Diodo que emite luz","Diodo de potencia","Resistor luminoso"], a: "Diodo que emite luz", correctText: "Correcto, convierte corriente eléctrica en luz visible.", wrongText: "Incorrecto, un LED es un diodo que emite luz." },
-                    { q: "¿Qué hace un transistor MOSFET?", o: ["Amplifica o conmuta","Almacena energía","Emite luz"], a: "Amplifica o conmuta", correctText: "Bien, los MOSFET se usan para amplificación y control de potencia.", wrongText: "Error, un MOSFET puede amplificar y conmutar señales." },
-                    { q: "¿Qué es un circuito RC en serie?", o: ["Resistor y capacitor conectados en serie","Resistencias en paralelo","Solo capacitores"], a: "Resistor y capacitor conectados en serie", correctText: "Correcto, el resistor y el capacitor forman un circuito RC serie.", wrongText: "Incorrecto, un RC serie tiene resistor y capacitor conectados uno tras otro." },
-                    { q: "¿Qué es un circuito RC en paralelo?", o: ["Resistor y capacitor conectados en paralelo","Resistencias en serie","Solo capacitores"], a: "Resistor y capacitor conectados en paralelo", correctText: "Bien, el resistor y capacitor se conectan a los mismos nodos.", wrongText: "No, en paralelo ambos extremos comparten nodos de conexión." },
-                    { q: "¿Qué indica la corriente continua (DC)?", o: ["Flujo constante de electrones","Flujo alterno","Resistencia variable"], a: "Flujo constante de electrones", correctText: "Correcto, la corriente DC fluye siempre en la misma dirección.", wrongText: "Incorrecto, DC significa corriente que fluye en una sola dirección." },
-                    { q: "¿Qué indica la corriente alterna (AC)?", o: ["Cambio periódico de dirección","Flujo constante","Resistencia"], a: "Cambio periódico de dirección", correctText: "Exacto, AC cambia de dirección periódicamente.", wrongText: "No, la corriente alterna cambia de sentido regularmente." },
-                    { q: "¿Qué es la capacitancia?", o: ["Capacidad de almacenar carga","Corriente máxima","Resistencia"], a: "Capacidad de almacenar carga", correctText: "Correcto, indica cuánta carga puede almacenar un capacitor.", wrongText: "Incorrecto, la capacitancia indica la capacidad de un capacitor para almacenar carga." }
-                ]
-            },
-            {
-                id: 'mod5',
-                title: 'Electrónica de Potencia I',
-                icon: 'fa-bolt-lightning',
-                xp: 300,
-                questions: [
-                    { q: "¿Qué es un MOSFET?", o: ["Transistor de efecto de campo","Diodo especial","Capacitor variable"], a: "Transistor de efecto de campo", correctText: "Correcto, un MOSFET controla la corriente usando un campo eléctrico.", wrongText: "Incorrecto, un MOSFET es un transistor controlado por voltaje." },
-                    { q: "En un MOSFET canal N, ¿qué ocurre si Vgs > Vth?", o: ["Se corta flujo","Crea canal conducción","Explota"], a: "Crea canal conducción", correctText: "Bien, se forma un canal que permite que fluya corriente.", wrongText: "No, al superar Vth se crea un canal de conducción." },
-                    { q: "¿Ventaja del IGBT frente al MOSFET?", o: ["Frecuencias GHz","Menores pérdidas alta potencia","Más barato"], a: "Menores pérdidas alta potencia", correctText: "Correcto, IGBT es mejor para manejar alta potencia con menos pérdidas.", wrongText: "Incorrecto, la ventaja principal del IGBT es menor pérdida en alta potencia." },
-                    { q: "¿Qué es un SCR?", o: ["Diodo controlado por silicio","Resistor especial","Capacitor avanzado"], a: "Diodo controlado por silicio", correctText: "Exacto, permite controlar grandes corrientes con un pulso de gate.", wrongText: "No, un SCR es un diodo controlado por silicio." },
-                    { q: "¿Qué significa dv/dt en un SCR?", o: ["Tasa de cambio de voltaje","Corriente de fuga","Temperatura"], a: "Tasa de cambio of voltaje", correctText: "Correcto, dv/dt indica cuánto puede variar el voltaje rápidamente.", wrongText: "Incorrecto, dv/dt se refiere a la velocidad de cambio de voltaje." },
-                    { q: "¿Qué hace un diodo Schottky?", o: ["Menor caída de voltaje directo","Almacena energía","Amplifica"], a: "Menor caída de voltaje directo", correctText: "Bien, tiene menor caída de voltaje y alta velocidad de conmutación.", wrongText: "No, un diodo Schottky reduce la caída de voltaje directo." },
-                    { q: "¿Para qué se usa un diodo Zener en potencia?", o: ["Regulación de voltaje","Almacén energía","Emite luz"], a: "Regulación de voltaje", correctText: "Correcto, mantiene un voltaje constante en circuitos de potencia.", wrongText: "Incorrecto, el Zener regula voltaje en inversa." },
-                    { q: "¿Qué es un transistor bipolar (BJT)?", o: ["Dispositivo que amplifica corriente","Diodo especial","Capacitor variable"], a: "Dispositivo que amplifica corriente", correctText: "Bien, un BJT puede amplificar y conmutar corrientes.", wrongText: "No, un BJT amplifica o conmuta señales eléctricas." },
-                    { q: "Polaridad de BJT NPN:", o: ["Corriente entra base positiva","Corriente entra base negativa","Solo corriente alterna"], a: "Corriente entra base positiva", correctText: "Correcto, la corriente de base positiva activa el transistor NPN.", wrongText: "Incorrecto, la base de NPN recibe corriente positiva." },
-                    { q: "Polaridad de BJT PNP:", o: ["Corriente entra base negativa","Corriente entra base positiva","Solo corriente alterna"], a: "Corriente entra base negativa", correctText: "Bien, la base de PNP recibe corriente negativa para conducir.", wrongText: "No, en PNP la corriente entra base negativa." }
-                ]
-            },
-            {
-                id: 'mod6',
-                title: 'Componentes Avanzados',
-                icon: 'fa-atom',
-                xp: 400,
-                questions: [
-                    { q: "¿Qué es un diodo de potencia?", o: ["Diodo para alta corriente","LED","Capacitor grande"], a: "Diodo para alta corriente", correctText: "Correcto, diseñado para soportar corrientes elevadas.", wrongText: "Incorrecto, un diodo de potencia soporta altas corrientes." },
-                    { q: "¿Qué es la corriente de conmutación?", o: ["Corriente máxima al encender un semiconductor","Voltaje máximo","Resistencia máxima"], a: "Corriente máxima al encender un semiconductor", correctText: "Bien, es la corriente que fluye durante el encendido.", wrongText: "No, la corriente de conmutación ocurre al activar un dispositivo." },
-                    { q: "¿Qué significa Vce en un BJT?", o: ["Voltaje colector-emisor","Voltaje de base","Corriente máxima"], a: "Voltaje colector-emisor", correctText: "Correcto, Vce indica voltaje entre colector y emisor.", wrongText: "Incorrecto, Vce es voltaje colector-emisor." },
-                    { q: "¿Qué significa Ic en un BJT?", o: ["Corriente del colector","Voltaje de base","Resistencia máxima"], a: "Corriente del colector", correctText: "Bien, Ic es la corriente que pasa por el colector.", wrongText: "No, Ic es la corriente que circula por el colector." },
-                    { q: "¿Qué significa Ib en un BJT?", o: ["Corriente de base","Voltaje de colector","Resistencia"], a: "Corriente de base", correctText: "Correcto, Ib controla el flujo de Ic.", wrongText: "Incorrecto, Ib es la corriente que controla el BJT." },
-                    { q: "¿Qué es un diodo puente?", o: ["Rectificador de 4 diodos","Diodo especial","Capacitor grande"], a: "Rectificador de 4 diodos", correctText: "Bien, convierte AC en DC usando 4 diodos.", wrongText: "No, un puente de diodos usa 4 diodos para rectificar." },
-                    { q: "¿Qué es un optoacoplador?", o: ["Aisla eléctricamente con luz","Amplificador","Resistor especial"], a: "Aisla eléctricamente con luz", correctText: "Correcto, transmite señal usando luz sin conexión eléctrica directa.", wrongText: "Incorrecto, un optoacoplador aísla usando luz." },
-                    { q: "¿Qué es el tiempo de retardo de un SCR?", o: ["Tiempo para activarse","Tiempo de apagado","Tiempo de conducción máxima"], a: "Tiempo para activarse", correctText: "Bien, indica cuánto tarda en comenzar a conducir tras el gate.", wrongText: "No, el retardo indica el tiempo hasta que el SCR conduce." },
-                    { q: "¿Qué es el tiempo de recuperación inversa de un diodo?", o: ["Tiempo que tarda en dejar de conducir en reversa","Tiempo de conducción","Voltaje máximo"], a: "Tiempo que tarda en dejar de conducir en reversa", correctText: "Correcto, indica la rapidez con que un diodo cambia de estado.", wrongText: "Incorrecto, este tiempo es el que tarda el diodo en bloquear corriente inversa." },
-                    { q: "¿Qué es el gate en un MOSFET?", o: ["Terminal que controla la corriente","Terminal de salida","Terminal de entrada de voltaje AC"], a: "Terminal que controla la corriente", correctText: "Correcto, el gate controla el flujo de corriente entre drain y source.", wrongText: "Incorrecto, el gate es la terminal de control del MOSFET." }
-                ]
-            }
-        ];
+        <main class="max-w-7xl mx-auto p-6 grid lg:grid-cols-12 gap-8">
+            <!-- Sidebar -->
+            <aside class="lg:col-span-3 space-y-6">
+                <div class="glass p-6 rounded-[2rem]">
+                    <h4 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-widest">Tu Avance</h4>
+                    <div class="h-4 bg-slate-800 rounded-full overflow-hidden mb-2">
+                        <div id="progress-bar-fill" class="h-full bg-blue-500 transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                    <p id="progress-text" class="text-sm font-bold text-blue-400 text-center">0%</p>
+                </div>
 
-        // --- STATE ---
-        let state = {
-            xp: 0,
-            lives: 5,
-            completed: [],
-            currentLevel: null,
-            currentQIdx: 0,
-            selectedOption: null,
-            save() {
-                localStorage.setItem('electroMasterV3', JSON.stringify({
-                    xp: this.xp,
-                    completed: this.completed
-                }));
-            },
-            load() {
-                const data = JSON.parse(localStorage.getItem('electroMasterV3'));
-                if (data) {
-                    this.xp = data.xp;
-                    this.completed = data.completed;
-                }
-            }
-        };
+                <nav class="space-y-2">
+                    <button onclick="showSubView('curriculum')" class="w-full p-4 rounded-2xl bg-blue-600 font-bold flex items-center gap-3">
+                        <i class="fas fa-book-open"></i> Contenido
+                    </button>
+                    <button onclick="showSubView('exam')" class="w-full p-4 rounded-2xl glass hover:bg-white/5 font-bold flex items-center gap-3 text-slate-400">
+                        <i class="fas fa-certificate"></i> Examen y Título
+                    </button>
+                </nav>
+            </aside>
 
-        // --- UI & RENDER ---
-        const ui = {
-            renderMap() {
-                const map = document.getElementById('view-map');
-                map.innerHTML = '';
-                
-                LEVELS.forEach((level, index) => {
-                    const isCompleted = state.completed.includes(level.id);
-                    const isLocked = index > 0 && !state.completed.includes(LEVELS[index-1].id);
-                    const isActive = !isCompleted && !isLocked;
-
-                    const node = document.createElement('div');
-                    node.className = `node ${isCompleted ? 'node-completed' : isLocked ? 'node-locked' : 'node-active'} mb-12`;
-                    node.style.marginLeft = `${Math.sin(index) * 60}px`; // S-Shape curve
-                    node.innerHTML = `<i class="fas ${level.icon}"></i>`;
-                    
-                    if (!isLocked) {
-                        node.onclick = () => quizEngine.start(level);
-                    }
-
-                    // Label
-                    const label = document.createElement('div');
-                    label.className = "absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-black uppercase whitespace-nowrap text-slate-500 tracking-tighter";
-                    label.innerText = level.title;
-                    node.appendChild(label);
-
-                    map.appendChild(node);
-                });
-
-                this.updateStats();
-            },
-
-            updateStats() {
-                document.getElementById('stat-xp').innerText = state.xp;
-                document.getElementById('stat-lives').innerText = state.lives;
-                const progress = (state.completed.length / LEVELS.length) * 100;
-                document.getElementById('master-progress').style.width = `${progress}%`;
-            },
-
-            exitQuiz() {
-                document.getElementById('view-quiz').classList.add('hidden');
-                document.getElementById('view-map').classList.remove('hidden');
-                this.renderMap();
-            },
-
-            showCert() {
-                document.getElementById('cert-modal').classList.remove('hidden');
-            },
-
-            closeCert() {
-                document.getElementById('cert-modal').classList.add('hidden');
-            }
-        };
-
-        // --- QUIZ ENGINE ---
-        const quizEngine = {
-            start(level) {
-                state.currentLevel = level;
-                state.currentQIdx = 0;
-                state.lives = 5;
-                document.getElementById('view-map').classList.add('hidden');
-                document.getElementById('view-quiz').classList.remove('hidden');
-                this.renderQuestion();
-            },
-
-            renderQuestion() {
-                const q = state.currentLevel.questions[state.currentQIdx];
-                const progress = (state.currentQIdx / state.currentLevel.questions.length) * 100;
-                document.getElementById('quiz-progress').style.width = `${progress}%`;
-                
-                const content = document.getElementById('quiz-content');
-                content.innerHTML = `
-                    <div class="mt-8">
-                        <h2 class="text-2xl font-black leading-tight mb-8">${q.q}</h2>
-                        <div class="grid gap-4">
-                            ${q.o.map((opt, i) => `
-                                <button onclick="quizEngine.selectOption(${i}, '${opt}')" class="option-btn p-5 rounded-2xl text-left font-bold text-lg">
-                                    <span class="inline-block w-8 h-8 rounded-lg bg-slate-800 text-center leading-8 mr-3 text-sm">${i+1}</span>
-                                    ${opt}
-                                </button>
-                            `).join('')}
+            <!-- Content Area -->
+            <div class="lg:col-span-9">
+                <div id="curriculum-view" class="space-y-6">
+                    <div class="module-card glass p-6 rounded-[2rem] space-y-4 transition-all" id="mod-intro">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-2xl font-bold">1. Introducción y Seguridad</h3>
+                                <p class="text-slate-400 text-sm">Normas ESD y herramientas básicas.</p>
+                            </div>
+                            <button onclick="markModuleComplete('mod-intro')" class="bg-emerald-500/10 text-emerald-500 p-3 rounded-xl hover:bg-emerald-500 hover:text-white transition">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                        <div class="aspect-video bg-black rounded-3xl overflow-hidden">
+                            <iframe class="w-full h-full" src="https://www.youtube.com/embed/P_H9-fB0K_0" frameborder="0" allowfullscreen></iframe>
                         </div>
                     </div>
-                `;
-                
-                document.getElementById('check-btn').classList.remove('hidden');
-                document.getElementById('feedback-panel').classList.remove('show');
-                state.selectedOption = null;
-            },
 
-            selectOption(idx, text) {
-                state.selectedOption = text;
-                const btns = document.querySelectorAll('.option-btn');
-                btns.forEach((b, i) => {
-                    b.classList.toggle('selected', i === idx);
-                });
-            },
+                    <div class="module-card glass p-6 rounded-[2rem] space-y-4 transition-all" id="mod-multimetro">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-2xl font-bold">2. Dominio del Multímetro</h3>
+                                <p class="text-slate-400 text-sm">Escalas, mediciones y diagnóstico de fallas.</p>
+                            </div>
+                            <button onclick="markModuleComplete('mod-multimetro')" class="bg-emerald-500/10 text-emerald-500 p-3 rounded-xl hover:bg-emerald-500 hover:text-white transition">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                        <div class="p-8 border-2 border-dashed border-white/5 rounded-3xl text-center text-slate-500 italic">
+                            Video Próximamente...
+                        </div>
+                    </div>
+                </div>
 
-            checkAnswer() {
-                if (!state.selectedOption) return;
+                <div id="exam-view" class="hidden space-y-6 animate-in fade-in duration-500">
+                    <div class="glass p-12 rounded-[3rem] text-center max-w-2xl mx-auto">
+                        <div class="w-20 h-20 bg-amber-500/20 text-amber-500 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6">
+                            <i class="fas fa-medal"></i>
+                        </div>
+                        <h2 class="text-4xl font-black mb-4">Certificación Final</h2>
+                        <p class="text-slate-400 mb-8">Debes completar todas las lecciones anteriores para habilitar el examen. El nombre que ingreses aquí será permanente en tu certificado.</p>
+                        
+                        <div class="space-y-4">
+                            <input type="text" id="cert-name-input" class="w-full bg-slate-900 border border-white/10 p-5 rounded-2xl text-center font-bold text-xl outline-none focus:border-blue-500" placeholder="TU NOMBRE COMPLETO">
+                            <button onclick="startFinalExam()" class="w-full bg-emerald-600 hover:bg-emerald-500 p-5 rounded-2xl font-black text-lg transition shadow-xl shadow-emerald-600/20">
+                                EMITIR MI CERTIFICADO
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </section>
 
-                const q = state.currentLevel.questions[state.currentQIdx];
-                const isCorrect = state.selectedOption === q.a;
-                const panel = document.getElementById('feedback-panel');
-                const title = document.getElementById('feedback-title');
-                const text = document.getElementById('feedback-text');
-                const icon = document.getElementById('feedback-icon');
-                const btn = panel.querySelector('button');
+    <!-- ÁREA DE CERTIFICADO -->
+    <section id="cert-print-area" class="hidden">
+        <div class="p-12 border-[20px] border-slate-900 bg-white text-slate-900 text-center min-h-[600px] flex flex-col justify-between">
+            <div>
+                <h4 class="text-blue-600 font-bold uppercase tracking-[0.3em] mb-10">Diploma de Excelencia</h4>
+                <p class="text-xl font-serif italic text-slate-500 mb-2">Se otorga con honor a:</p>
+                <h1 id="display-name-cert" class="text-6xl font-black italic border-b-4 border-slate-100 inline-block px-12 pb-4">JUAN PEREZ</h1>
+            </div>
+            
+            <div>
+                <p class="text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto">
+                    Por haber completado satisfactoriamente el programa avanzado de 
+                    <strong class="text-slate-900">MICROELECTRÓNICA Y REPARACIÓN PROFESIONAL</strong> 
+                    con un desempeño excepcional.
+                </p>
+            </div>
 
-                panel.className = `feedback-panel show ${isCorrect ? 'bg-green-600' : 'bg-red-600'}`;
-                title.innerText = isCorrect ? '¡Excelente!' : 'Sigue intentando';
-                text.innerText = isCorrect ? q.correctText : q.wrongText;
-                icon.innerHTML = `<i class="fas ${isCorrect ? 'fa-check-circle' : 'fa-times-circle'}"></i>`;
-                btn.className = `w-full py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-95 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`;
+            <div class="flex justify-between items-end px-12">
+                <div class="text-left">
+                    <p class="text-[10px] font-mono text-slate-400 mb-1">ID VERIFICACIÓN:</p>
+                    <p id="display-id-cert" class="text-sm font-mono font-bold tracking-tighter">CERT-XXXXX</p>
+                </div>
+                <div class="relative">
+                    <i class="fas fa-award text-8xl text-amber-500"></i>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] font-mono text-slate-400 mb-1">FECHA DE EMISIÓN:</p>
+                    <p id="display-date-cert" class="text-sm font-mono font-bold">19/03/2026</p>
+                </div>
+            </div>
+        </div>
+        <div class="no-print p-10 text-center">
+            <button onclick="window.print()" class="bg-blue-600 px-10 py-4 rounded-2xl font-bold">Descargar / Imprimir</button>
+            <button onclick="location.reload()" class="ml-4 text-slate-400 font-bold underline">Volver al Curso</button>
+        </div>
+    </section>
 
-                if (!isCorrect) {
-                    state.lives--;
-                    document.getElementById('heart-icon').classList.add('heart-pop');
-                    setTimeout(() => document.getElementById('heart-icon').classList.remove('heart-pop'), 300);
-                    if (state.lives <= 0) {
-                        btn.innerText = "Reintentar Nivel";
-                        btn.onclick = () => location.reload();
-                    }
-                } else {
-                    state.xp += 10;
-                }
-                
-                ui.updateStats();
-            },
+    <script>
+        // --- CONTROL DE VISTAS ---
+        function showSubView(id) {
+            document.getElementById('curriculum-view').classList.add('hidden');
+            document.getElementById('exam-view').classList.add('hidden');
+            document.getElementById(`${id}-view`).classList.remove('hidden');
+        }
 
-            nextQuestion() {
-                if (state.currentQIdx < state.currentLevel.questions.length - 1) {
-                    state.currentQIdx++;
-                    this.renderQuestion();
-                } else {
-                    this.finishLevel();
-                }
-            },
+        function showToast(msg, type) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.className = `fixed top-5 right-5 z-[100] p-4 rounded-xl shadow-2xl transition-all duration-300 ${type === 'error' ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`;
+            t.classList.remove('translate-x-full');
+            setTimeout(() => t.classList.add('translate-x-full'), 3000);
+        }
 
-            finishLevel() {
-                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                if (!state.completed.includes(state.currentLevel.id)) {
-                    state.completed.push(state.currentLevel.id);
-                    state.xp += state.currentLevel.xp;
-                }
-                state.save();
-                
-                // Si es el nivel final o fase 2 (mod 5 o 6), mostrar certificado
-                if (state.currentLevel.id === 'mod6') {
-                    ui.showCert();
-                } else {
-                    ui.exitQuiz();
-                }
+        function updateUIProgress() {
+            const total = 2; // mod-intro y mod-multimetro
+            const completed = (window.userProgress.modulesCompleted || []).length;
+            const percentage = Math.round((completed / total) * 100);
+
+            document.getElementById('progress-bar-fill').style.width = `${percentage}%`;
+            document.getElementById('progress-text').innerText = `${percentage}% Completado`;
+
+            // Estilos de tarjetas completadas
+            if(window.userProgress.modulesCompleted.includes('mod-intro')) document.getElementById('mod-intro').classList.add('completed');
+            if(window.userProgress.modulesCompleted.includes('mod-multimetro')) document.getElementById('mod-multimetro').classList.add('completed');
+        }
+
+        async function startFinalExam() {
+            const name = document.getElementById('cert-name-input').value;
+            if(!name) return showToast("Escribe tu nombre oficial", "error");
+
+            if(window.userProgress.modulesCompleted.length < 2) {
+                return showToast("Debes completar todos los módulos primero", "error");
             }
-        };
 
-        // --- CERTIFICATE ---
-        const certificateLogic = {
-            download() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'mm', 'a4');
-                const title = state.currentLevel.title;
-                const date = new Date().toLocaleDateString();
-
-                // Background
-                doc.setFillColor(15, 23, 42);
-                doc.rect(0, 0, 297, 210, 'F');
-                doc.setDrawColor(59, 130, 246);
-                doc.setLineWidth(2);
-                doc.rect(10, 10, 277, 190);
-
-                // Content
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(40);
-                doc.text("CERTIFICADO DE LOGRO", 148, 60, null, null, "center");
+            const certId = await window.saveExamResult(name);
+            if(certId) {
+                document.getElementById('display-name-cert').innerText = name.toUpperCase();
+                document.getElementById('display-id-cert').innerText = certId;
+                document.getElementById('display-date-cert').innerText = new Date().toLocaleDateString();
                 
-                doc.setFontSize(20);
-                doc.setTextColor(150, 150, 150);
-                doc.text("OTORGADO A EL INGENIERO(A):", 148, 90, null, null, "center");
-                
-                doc.setFontSize(35);
-                doc.setTextColor(59, 130, 246);
-                doc.text("ESTUDIANTE PRO", 148, 115, null, null, "center");
-                
-                doc.setFontSize(18);
-                doc.setTextColor(200, 200, 200);
-                doc.text(`Por completar exitosamente el módulo:`, 148, 140, null, null, "center");
-                doc.text(title.toUpperCase(), 148, 155, null, null, "center");
-
-                doc.setFontSize(12);
-                doc.text(`Fecha: ${date}`, 40, 185);
-                doc.text("ID: ELECTROM-PRO-" + Math.random().toString(36).substr(2, 9).toUpperCase(), 200, 185);
-
-                doc.save('Certificado_ElectroMaster.pdf');
-                ui.closeCert();
-                ui.exitQuiz();
+                document.getElementById('app-section').classList.add('hidden');
+                document.getElementById('cert-print-area').classList.remove('hidden');
             }
-        };
-
-        window.onload = () => {
-            state.load();
-            ui.renderMap();
-        };
+        }
     </script>
 </body>
 </html>
-
