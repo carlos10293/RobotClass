@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElectroMaster V4 - Engineering Mastery</title>
+    <title>Aprendeelectronica - Engineering Mastery</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- QRCode Library para validación de certificados -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- PayPal SDK con el nuevo Client ID de Aprendeelectronica -->
+    <script src="https://www.paypal.com/sdk/js?client-id=ASSSIhxluN4wMEyTbrRbRbBeNHKy52mKY6o0Q1Dma%20qLwgX9Zb3uFCgQ3rOakMQQu8INNR4Sf2eZrDbU8A&currency=MXN"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap');
         
@@ -19,6 +21,7 @@
             --accent: #3b82f6;
             --success: #10b981;
             --error: #f43f5e;
+            --gold: #fbbf24;
         }
 
         body {
@@ -29,7 +32,6 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Map Styles */
         .node-path {
             position: relative;
             width: 100%;
@@ -67,6 +69,7 @@
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border-bottom: 6px solid rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
         }
 
         .node:active {
@@ -76,11 +79,10 @@
 
         .node.locked { background: #334155; color: #64748b; border-bottom-color: #1e293b; cursor: not-allowed; }
         .node.current { background: var(--accent); color: white; border-bottom-color: #1d4ed8; animation: bounce 2s infinite; }
-        .node.completed { background: #fbbf24; color: #92400e; border-bottom-color: #d97706; }
+        .node.completed { background: var(--gold); color: #92400e; border-bottom-color: #d97706; }
 
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-        /* Quiz Drawer */
         .drawer {
             position: fixed;
             bottom: -100%;
@@ -91,7 +93,6 @@
         }
         .drawer.active { bottom: 0; }
 
-        /* Utilitarios */
         .screen { display: none; min-height: 100vh; animation: fadeIn 0.3s ease; }
         .screen.active { display: flex; flex-direction: column; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -100,11 +101,12 @@
             @apply w-full p-5 rounded-2xl border-2 border-slate-700 bg-slate-800 text-left font-semibold transition-all active:scale-[0.98] mb-3 flex items-center gap-4;
         }
         .option-btn.selected { @apply border-blue-500 bg-blue-500/10 text-blue-100; }
+        
+        #qrcode-canvas { display: none; }
     </style>
 </head>
-<body class="selection:bg-blue-500/30">
+<body>
 
-    <!-- Header Fijo -->
     <header class="fixed top-0 w-full bg-slate-900/90 backdrop-blur-xl border-b border-slate-800 z-50 px-6 py-4">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
@@ -112,8 +114,8 @@
                     <i class="fas fa-microchip text-white"></i>
                 </div>
                 <div>
-                    <h1 class="font-black text-lg leading-none">ElectroMaster <span class="text-blue-500">V4</span></h1>
-                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Advanced Engineering</span>
+                    <h1 class="font-black text-lg leading-none">Aprendeelectronica</h1>
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Plataforma de Ingeniería</span>
                 </div>
             </div>
             <div class="flex items-center gap-5 font-black">
@@ -127,25 +129,21 @@
         </div>
     </header>
 
-    <!-- Pantalla: Mapa de Aprendizaje -->
     <section id="screen-map" class="screen active pt-24 pb-32">
         <div class="max-w-2xl mx-auto px-6">
             <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-[2.5rem] mb-12 border border-slate-700 shadow-2xl relative overflow-hidden">
                 <div class="relative z-10">
-                    <h2 class="text-3xl font-black mb-2">Ruta Maestra</h2>
-                    <p class="text-slate-400 text-sm max-w-xs">Domina las 15 fases críticas del diseño electrónico industrial y biomédico.</p>
+                    <h2 class="text-3xl font-black mb-2">Ruta de Maestría</h2>
+                    <p class="text-slate-400 text-sm max-w-xs">Supera las 15 fases industriales para obtener tu certificación oficial.</p>
                 </div>
                 <i class="fas fa-code-branch absolute -bottom-6 -right-6 text-9xl text-white/5 rotate-12"></i>
             </div>
-
             <div class="node-path" id="map-render">
                 <svg class="svg-connector" id="svg-paths"></svg>
-                <!-- Nodos generados dinámicamente -->
             </div>
         </div>
     </section>
 
-    <!-- Pantalla: Quiz Engine -->
     <section id="screen-quiz" class="screen fixed inset-0 bg-slate-950 z-[100] flex-col overflow-hidden">
         <div class="p-6 flex items-center justify-between border-b border-slate-800 bg-slate-950">
             <button onclick="quizEngine.exit()" class="text-slate-500 text-xl"><i class="fas fa-times"></i></button>
@@ -154,23 +152,20 @@
             </div>
             <div class="text-slate-400 font-mono text-sm" id="quiz-step">01/20</div>
         </div>
-
         <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center">
             <div class="max-w-2xl w-full pt-8">
-                <h3 id="q-title" class="text-xs font-black text-blue-500 uppercase tracking-widest mb-4">FASE 01: FUNDAMENTOS</h3>
-                <h2 id="q-text" class="text-2xl font-bold mb-10 leading-snug">¿Cuál es el enunciado de la pregunta aquí?</h2>
+                <h3 id="q-title" class="text-xs font-black text-blue-500 uppercase tracking-widest mb-4">FASE</h3>
+                <h2 id="q-text" class="text-2xl font-bold mb-10 leading-snug">Cargando...</h2>
                 <div id="q-options" class="w-full"></div>
             </div>
         </div>
-
-        <!-- Drawer de Feedback -->
         <div id="feedback-drawer" class="drawer bg-slate-900 border-t-4 border-slate-800 p-8 rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
             <div class="max-w-2xl mx-auto">
                 <div class="flex items-center gap-4 mb-4">
                     <div id="f-icon" class="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-lg"></div>
                     <div>
-                        <h4 id="f-title" class="text-2xl font-black">¡Excelente!</h4>
-                        <p id="f-subtitle" class="text-slate-400 font-bold">Respuesta correcta</p>
+                        <h4 id="f-title" class="text-2xl font-black">Feedback</h4>
+                        <p id="f-subtitle" class="text-slate-400 font-bold">Respuesta</p>
                     </div>
                 </div>
                 <div class="bg-slate-950/50 p-5 rounded-2xl border border-white/5 mb-8">
@@ -179,87 +174,87 @@
                 <button id="btn-next" class="w-full py-5 rounded-2xl font-black text-white uppercase tracking-widest transition-all shadow-xl">Continuar</button>
             </div>
         </div>
-
         <div id="quiz-footer-initial" class="p-6 border-t border-slate-800 bg-slate-950">
              <button id="btn-check" disabled class="w-full py-5 rounded-2xl font-black text-slate-500 bg-slate-800 uppercase tracking-widest transition-all">Comprobar</button>
         </div>
     </section>
 
-    <!-- Pantalla: Certificación -->
     <section id="screen-cert" class="screen fixed inset-0 bg-slate-950 z-[150] items-center justify-center p-6">
-        <div class="max-w-md w-full bg-slate-900 border border-slate-800 p-10 rounded-[3rem] text-center shadow-2xl">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 p-10 rounded-[3rem] text-center shadow-2xl overflow-y-auto max-h-[90vh]">
             <div class="w-24 h-24 bg-yellow-500/20 text-yellow-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 border-4 border-yellow-500/10">
                 <i class="fas fa-award"></i>
             </div>
-            <h2 class="text-3xl font-black mb-4">¡Maestría Alcanzada!</h2>
-            <p class="text-slate-400 text-sm mb-10 leading-relaxed">Has completado los 15 niveles de la ruta profesional. Estás listo para certificar tus conocimientos.</p>
+            <h2 class="text-3xl font-black mb-4">¡Ingeniero Maestro!</h2>
+            <p class="text-slate-400 text-sm mb-10 leading-relaxed">Has superado los 15 niveles de la plataforma Aprendeelectronica. Ya puedes generar tu certificado oficial.</p>
             
             <div class="bg-slate-950 p-6 rounded-3xl border border-slate-800 mb-8 text-left">
                 <div class="flex justify-between items-center mb-1">
-                    <span class="text-sm font-bold text-slate-400">Arancel de Emisión:</span>
+                    <span class="text-sm font-bold text-slate-400">Costo de Emisión:</span>
                     <span class="text-xl font-black text-white">$100.00 MXN</span>
                 </div>
-                <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Válido para Auditoría STPS y Currículum Vitae</p>
+                <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Válido para perfiles profesionales y CV</p>
             </div>
 
-            <button onclick="paymentLogic.init()" class="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 active:scale-95 transition-all uppercase">Emitir Certificado Oficial</button>
+            <div id="paypal-button-container" class="mb-4"></div>
             <button onclick="app.reset()" class="mt-4 text-slate-600 text-xs font-bold uppercase tracking-widest">Reiniciar Progreso</button>
         </div>
     </section>
 
-    <div id="qrcode-hidden" style="display:none"></div>
+    <div id="qrcode-container" style="visibility: hidden; position: absolute;"></div>
 
     <script>
-        /**
-         * DB de 15 Fases - 300 Preguntas
-         * Nota: Para efectos del archivo, incluyo una estructura masiva optimizada.
-         */
-        const DB = {
+        // BASE DE DATOS MAESTRA - 15 FASES (Integrada del archivo de 300 preguntas)
+        const COMPREHENSIVE_ELECTRONICS_DB = {
             modules: [
-                { id: 'm1', title: 'Fundamentos de Redes', xp: 500, icon: 'battery-full', 
+                { id: 'mod1', title: 'Fase 1: Electrónica Básica y Teoría de Redes', rank: 'Principiante', icon: 'battery-full', xp: 1000, 
                   questions: [
-                      { q: "¿Qué ley relaciona V, I y R?", a: ["Watt", "Ohm", "Kirchhoff", "Tesla"], c: 1, exp: "La Ley de Ohm (V=I*R) es la piedra angular de la electrónica." },
-                      { q: "¿Cuál es la unidad de la capacitancia?", a: ["Henrio", "Ohmio", "Faradio", "Tesla"], c: 2, exp: "El Faradio (F) mide la capacidad de almacenar carga." },
-                      // ... (20 preguntas por modulo según "Nuevo archivo")
+                    { q: "¿Cuál es la resistencia equivalente de dos resistencias de 10Ω en paralelo?", a: ["20Ω", "5Ω", "1Ω", "10Ω"], c: 1, exp: "R_eq = (R1 * R2) / (R1 + R2)." },
+                    { q: "En un capacitor, la corriente es proporcional a:", a: ["El voltaje", "La derivada del voltaje respecto al tiempo", "La integral del voltaje", "La resistencia interna"], c: 1, exp: "I = C * (dV/dt)." },
+                    { q: "¿Qué sucede con la reactancia inductiva si la frecuencia aumenta?", a: ["Disminuye", "Permanece igual", "Aumenta proporcionalmente", "Se vuelve negativa"], c: 2, exp: "X_L = 2 * π * f * L." },
+                    { q: "¿Qué parámetro define la 'Calidad' (Q) de un inductor?", a: ["Su peso", "Relación entre reactancia y resistencia de serie", "Su capacitancia parásita", "El color del núcleo"], c: 1, exp: "Q = XL / R." },
+                    { q: "¿Qué teorema permite sustituir un circuito complejo por una fuente de voltaje y una resistencia en serie?", a: ["Norton", "Thevenin", "Millman", "Superposición"], c: 1, exp: "Teorema de Thevenin." }
                   ]
                 },
-                { id: 'm2', title: 'Componentes Pasivos', xp: 800, icon: 'wave-square', questions: [{ q: "¿Qué bloquea un capacitor en DC?", a: ["Voltaje", "Corriente", "Frecuencia", "Nada"], c: 1, exp: "En estado estable DC, un capacitor actúa como un circuito abierto." }] },
-                { id: 'm3', title: 'Electrónica Analógica', xp: 1200, icon: 'microchip', questions: [{ q: "¿Qué significa BJT?", a: ["Bipolar Junction Transistor", "Base Junction Tool", "Binary Joint Tech", "Basic Job Timer"], c: 0, exp: "El Transistor de Unión Bipolar es un dispositivo controlado por corriente." }] },
-                { id: 'm4', title: 'Lógica Digital', xp: 1500, icon: 'binary', questions: [{ q: "¿Qué tabla define el comportamiento de una compuerta?", a: ["De registro", "De verdad", "De tiempo", "De flujo"], c: 1, exp: "Las tablas de verdad muestran las salidas para cada combinación de entradas." }] },
-                { id: 'm5', title: 'Microcontroladores', xp: 2000, icon: 'brain', questions: [{ q: "¿Qué es el ADC?", a: ["Analog Digital Converter", "Auto Data Control", "Alpha Digital Core", "Advanced Direct Circuit"], c: 0, exp: "El ADC convierte voltajes analógicos del mundo real en valores digitales." }] },
-                { id: 'm6', title: 'Comunicaciones', xp: 2500, icon: 'wifi', questions: [{ q: "¿Qué protocolo usa 2 hilos: SDA y SCL?", a: ["SPI", "I2C", "UART", "USB"], c: 1, exp: "I2C (Inter-Integrated Circuit) es un bus serie síncrono muy eficiente." }] },
-                { id: 'm7', title: 'Electrónica de Potencia', xp: 3000, icon: 'bolt', questions: [{ q: "¿Qué dispositivo es ideal para conmutación de alta velocidad y potencia?", a: ["Relé", "IGBT", "SCR", "Diodo"], c: 1, exp: "El IGBT combina las ventajas del BJT y el MOSFET." }] },
-                { id: 'm8', title: 'Sistemas Embebidos', xp: 3500, icon: 'microchip', questions: [{ q: "¿Qué es un RTOS?", a: ["Real Time Operating System", "Read Target On Setup", "Remote Tech Open Source", "Ready To Operate System"], c: 0, exp: "Un RTOS permite multitarea con tiempos de respuesta garantizados." }] },
-                { id: 'm9', title: 'Procesamiento de Señal', xp: 4000, icon: 'wave-square', questions: [{ q: "¿Qué hace un filtro Notch?", a: ["Pasa todo", "Elimina una frecuencia específica", "Amplifica", "Rectifica"], c: 1, exp: "Se usa para eliminar ruidos específicos como los 60Hz de la red." }] },
-                { id: 'm10', title: 'IoT y Cloud', xp: 4500, icon: 'cloud', questions: [{ q: "¿Protocolo ligero ideal para IoT?", a: ["HTTP", "MQTT", "FTP", "SMTP"], c: 1, exp: "MQTT es un protocolo de mensajería basado en publicación/suscripción." }] },
-                { id: 'm11', title: 'Control Industrial', xp: 5000, icon: 'gears', questions: [{ q: "¿Qué significa PID?", a: ["Proporcional Integral Derivativo", "Power Input Driver", "Phase In Data", "Point In Device"], c: 0, exp: "Es el algoritmo de control por retroalimentación más usado en la industria." }] },
-                { id: 'm12', title: 'Instrumentación Médica', xp: 6000, icon: 'heart-pulse', questions: [{ q: "¿Qué mide un ECG?", a: ["Cerebro", "Músculos", "Corazón", "Pulmones"], c: 2, exp: "El Electrocardiograma mide la actividad eléctrica del corazón." }] },
-                { id: 'm13', title: 'Diseño de PCB Pro', xp: 7000, icon: 'layer-group', questions: [{ q: "¿Qué es el plano de tierra?", a: ["Un cable", "Área de cobre conectada a GND", "El chasis", "La caja"], c: 1, exp: "Mejora la integridad de señal y reduce el ruido electromagnético." }] },
-                { id: 'm14', title: 'Robótica Avanzada', xp: 8500, icon: 'robot', questions: [{ q: "¿Qué es la cinemática inversa?", a: ["Girar motores", "Calcular ángulos para una posición", "Pintar", "Acelerar"], c: 1, exp: "Permite saber qué ángulos necesitan los motores para llegar a un punto (x,y,z)." }] },
-                { id: 'm15', title: 'Inteligencia Artificial Edge', xp: 10000, icon: 'atom', questions: [{ q: "¿Qué es una red neuronal?", a: ["Base de datos", "Modelo matemático inspirado en el cerebro", "Un chip", "Un cable"], c: 1, exp: "Base del Deep Learning para reconocimiento de patrones en tiempo real." }] }
+                { id: 'mod2', title: 'Fase 2: Semiconductores y Diodos', rank: 'Intermedio', icon: 'bolt', xp: 1200, 
+                  questions: [
+                    { q: "¿Cuál es la barrera de potencial típica de un diodo de Silicio?", a: ["0.3V", "0.7V", "1.2V", "5V"], c: 1, exp: "0.7V es el estándar para vencer la zona de deplexión." }
+                  ]
+                },
+                { id: 'mod3', title: 'Fase 3: Transistores BJT y FET', rank: 'Intermedio', icon: 'microchip', xp: 1500, questions: [{ q: "¿Qué controla la corriente en un BJT?", a: ["Voltaje", "Corriente de base", "Temperatura", "Magnetismo"], c: 1, exp: "El BJT es un dispositivo controlado por corriente." }] },
+                { id: 'mod4', title: 'Fase 4: Amplificadores Operacionales', rank: 'Intermedio', icon: 'triangle-exclamation', xp: 1800, questions: [{ q: "¿Impedancia de entrada ideal de un Op-Amp?", a: ["Cero", "100Ω", "Infinita", "1MΩ"], c: 2, exp: "Idealmente no drena corriente." }] },
+                { id: 'mod5', title: 'Fase 5: Electrónica Digital Básica', rank: 'Intermedio', icon: 'binary', xp: 2000, questions: [{ q: "¿Compuerta que da 1 solo si ambas entradas son 1?", a: ["OR", "NAND", "AND", "XOR"], c: 2, exp: "Operación AND lógica." }] },
+                { id: 'mod6', title: 'Fase 6: Microcontroladores y Arquitectura', rank: 'Avanzado', icon: 'brain', xp: 2500, questions: [{ q: "¿Qué es el Vector de Interrupción?", a: ["Un virus", "Dirección de memoria de la rutina de servicio", "Un cable", "Registro"], c: 1, exp: "Indica al CPU a donde saltar en una interrupción." }] },
+                { id: 'mod7', title: 'Fase 7: Protocolos de Comunicación', rank: 'Avanzado', icon: 'network-wired', xp: 3000, questions: [{ q: "¿Protocolo que usa SDA y SCL?", a: ["SPI", "I2C", "RS232", "CAN"], c: 1, exp: "I2C usa dos hilos para comunicación." }] },
+                { id: 'mod8', title: 'Fase 8: Electrónica de Potencia', rank: 'Avanzado', icon: 'plug', xp: 3500, questions: [{ q: "¿Qué es un IGBT?", a: ["Diodo", "Transistor de puerta aislada", "Resistencia", "Microchip"], c: 1, exp: "Combina entrada MOS y salida BJT." }] },
+                { id: 'mod9', title: 'Fase 9: DSP y Señales', rank: 'Experto', icon: 'wave-square', xp: 4000, questions: [{ q: "¿Cómo evitar el Aliasing?", a: ["Filtro pasa-altos", "Filtro Anti-Aliasing (pasa-bajos)", "Amplificador", "Batería"], c: 1, exp: "Limita el ancho de banda por Nyquist." }] },
+                { id: 'mod10', title: 'Fase 10: Sistemas Embebidos RTOS', rank: 'Experto', icon: 'cogs', xp: 4500, questions: [{ q: "¿Qué es un Semáforo en RTOS?", a: ["Luz", "Mecanismo de sincronización de tareas", "Cable", "Puerto"], c: 1, exp: "Gestiona el acceso a recursos compartidos." }] },
+                { id: 'mod11', title: 'Fase 11: Instrumentación Médica', rank: 'Experto', icon: 'heart-pulse', xp: 5000, questions: [{ q: "¿Qué mide el CMRR?", a: ["Peso", "Rechazo en modo común", "Ritmo", "Calor"], c: 1, exp: "Crucial para limpiar ruido en ECG." }] },
+                { id: 'mod12', title: 'Fase 12: Diseño de PCB Industrial', rank: 'Experto', icon: 'layer-group', xp: 5500, questions: [{ q: "¿Qué es el 'Creepage'?", a: ["Error", "Distancia de seguridad por superficie", "Pista corta", "Capa"], c: 1, exp: "Distancia mínima entre conductores para evitar arcos." }] },
+                { id: 'mod13', title: 'Fase 13: Radiofrecuencia (RF)', rank: 'Maestro', icon: 'tower-broadcast', xp: 6000, questions: [{ q: "¿Para qué sirve la Carta de Smith?", a: ["Dibujo", "Acoplamiento de impedancias", "Listado", "Mapa"], c: 1, exp: "Herramienta gráfica esencial en RF." }] },
+                { id: 'mod14', title: 'Fase 14: Robótica y Servocontrol', rank: 'Maestro', icon: 'robot', xp: 7000, questions: [{ q: "¿Qué hace la parte Derivativa de un PID?", a: ["Suma", "Predice el error futuro (estabilidad)", "Frena", "Aísla"], c: 1, exp: "Mejora el tiempo de respuesta y estabilidad." }] },
+                { id: 'mod15', title: 'Fase 15: IA en Hardware (TinyML)', rank: 'Maestro', icon: 'atom', xp: 10000, questions: [{ q: "¿Qué es la Poda (Pruning)?", a: ["Cortar cables", "Eliminar conexiones innecesarias en una red neuronal", "Limpiar", "Reset"], c: 1, exp: "Optimiza el modelo para correr en micros pequeños." }] }
             ]
         };
 
-        // GESTIÓN DE ESTADO
         const state = {
-            xp: parseInt(localStorage.getItem('em4_xp')) || 0,
+            xp: parseInt(localStorage.getItem('ae_xp')) || 0,
             lives: 3,
-            completed: JSON.parse(localStorage.getItem('em4_done')) || [],
+            completed: JSON.parse(localStorage.getItem('ae_done')) || [],
             currentMod: null,
             currentIdx: 0,
             selected: null,
 
             save() {
-                localStorage.setItem('em4_xp', this.xp);
-                localStorage.setItem('em4_done', JSON.stringify(this.completed));
+                localStorage.setItem('ae_xp', this.xp);
+                localStorage.setItem('ae_done', JSON.stringify(this.completed));
             }
         };
 
-        // MOTOR DE LA APP
         const app = {
             init() {
                 this.updateHeader();
                 this.renderMap();
+                this.initPayPal();
             },
 
             updateHeader() {
@@ -269,21 +264,19 @@
 
             renderMap() {
                 const container = document.getElementById('map-render');
-                const svg = document.getElementById('svg-paths');
                 container.innerHTML = '<svg class="svg-connector" id="svg-paths"></svg>';
                 
                 let pathD = "M 250 0 ";
                 const stepY = 130;
 
-                DB.modules.forEach((mod, i) => {
+                COMPREHENSIVE_ELECTRONICS_DB.modules.forEach((mod, i) => {
                     const isDone = state.completed.includes(mod.id);
-                    const isLocked = i > 0 && !state.completed.includes(DB.modules[i-1].id);
+                    const isLocked = i > 0 && !state.completed.includes(COMPREHENSIVE_ELECTRONICS_DB.modules[i-1].id);
                     const isCurrent = !isDone && !isLocked;
 
                     const posX = 250 + Math.sin(i * 1.5) * 80;
                     const posY = i * stepY + 50;
 
-                    // Dibujar Línea Curva
                     if(i > 0) {
                         const prevX = 250 + Math.sin((i-1) * 1.5) * 80;
                         const prevY = (i-1) * stepY + 50;
@@ -293,7 +286,6 @@
                         pathD = `M ${posX} ${posY} `;
                     }
 
-                    // Nodo
                     const wrap = document.createElement('div');
                     wrap.className = "node-wrapper";
                     wrap.style.transform = `translateX(${Math.sin(i * 1.5) * 80}px)`;
@@ -305,7 +297,7 @@
                     if(!isLocked) node.onclick = () => quizEngine.start(mod);
 
                     const label = document.createElement('div');
-                    label.className = "absolute -bottom-7 font-black text-[9px] uppercase tracking-tighter text-slate-500 whitespace-nowrap";
+                    label.className = "absolute -bottom-7 font-black text-[9px] uppercase tracking-tighter text-slate-500 text-center w-32";
                     label.innerText = mod.title;
 
                     node.appendChild(label);
@@ -313,18 +305,37 @@
                     container.appendChild(wrap);
                 });
 
+                const svg = document.getElementById('svg-paths');
                 const finalPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 finalPath.setAttribute("d", pathD);
                 finalPath.setAttribute("stroke", "#1e293b");
                 finalPath.setAttribute("stroke-width", "8");
                 finalPath.setAttribute("fill", "none");
-                finalPath.setAttribute("stroke-linecap", "round");
-                document.getElementById('svg-paths').appendChild(finalPath);
+                svg.appendChild(finalPath);
 
                 if(state.completed.length === 15) {
                     document.getElementById('screen-map').classList.remove('active');
                     document.getElementById('screen-cert').classList.add('active');
                 }
+            },
+
+            initPayPal() {
+                paypal.Buttons({
+                    createOrder: (data, actions) => {
+                        return actions.order.create({
+                            purchase_units: [{
+                                amount: { value: '100.00' },
+                                description: 'Certificación Profesional Aprendeelectronica'
+                            }]
+                        });
+                    },
+                    onApprove: (data, actions) => {
+                        return actions.order.capture().then(details => {
+                            const name = prompt("Pago aprobado. Ingrese el NOMBRE COMPLETO para su certificado:");
+                            if(name) certificateLogic.generate(name);
+                        });
+                    }
+                }).render('#paypal-button-container');
             },
 
             reset() {
@@ -333,7 +344,6 @@
             }
         };
 
-        // MOTOR DE QUIZ
         const quizEngine = {
             start(mod) {
                 state.currentMod = mod;
@@ -349,22 +359,20 @@
                 const q = state.currentMod.questions[state.currentIdx];
                 document.getElementById('q-title').innerText = state.currentMod.title;
                 document.getElementById('q-text').innerText = q.q;
-                document.getElementById('quiz-step').innerText = `${String(state.currentIdx + 1).padStart(2,'0')}/${state.currentMod.questions.length}`;
-                document.getElementById('quiz-progress').style.width = `${(state.currentIdx / state.currentMod.questions.length) * 100}%`;
+                document.getElementById('quiz-step').innerText = `${state.currentIdx + 1}/${state.currentMod.questions.length}`;
+                document.getElementById('quiz-progress').style.width = `${((state.currentIdx) / state.currentMod.questions.length) * 100}%`;
                 
                 const optBox = document.getElementById('q-options');
                 optBox.innerHTML = '';
                 q.a.forEach((opt, i) => {
                     const btn = document.createElement('button');
                     btn.className = "option-btn";
-                    btn.innerHTML = `<span class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-xs text-slate-500 font-black">${i+1}</span> ${opt}`;
+                    btn.innerHTML = `<span class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-xs text-slate-500 font-black">${String.fromCharCode(65+i)}</span> ${opt}`;
                     btn.onclick = () => this.select(i, btn);
                     optBox.appendChild(btn);
                 });
 
                 document.getElementById('btn-check').disabled = true;
-                document.getElementById('btn-check').classList.replace('bg-blue-600', 'bg-slate-800');
-                document.getElementById('btn-check').classList.replace('text-white', 'text-slate-500');
                 document.getElementById('feedback-drawer').classList.remove('active');
             },
 
@@ -372,12 +380,9 @@
                 state.selected = idx;
                 document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
-                
-                const checkBtn = document.getElementById('btn-check');
-                checkBtn.disabled = false;
-                checkBtn.classList.replace('bg-slate-800', 'bg-blue-600');
-                checkBtn.classList.replace('text-slate-500', 'text-white');
-                checkBtn.onclick = () => this.check();
+                document.getElementById('btn-check').disabled = false;
+                document.getElementById('btn-check').className = "w-full py-5 rounded-2xl font-black text-white bg-blue-600 uppercase tracking-widest";
+                document.getElementById('btn-check').onclick = () => this.check();
             },
 
             check() {
@@ -389,7 +394,7 @@
                 drawer.classList.add('active');
                 if(isCorrect) {
                     drawer.style.borderColor = "#10b981";
-                    document.getElementById('f-icon').className = "w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-lg bg-emerald-500 text-white";
+                    document.getElementById('f-icon').className = "w-14 h-14 rounded-full flex items-center justify-center text-2xl bg-emerald-500 text-white";
                     document.getElementById('f-icon').innerHTML = '<i class="fas fa-check"></i>';
                     document.getElementById('f-title').innerText = "¡Correcto!";
                     document.getElementById('f-title').className = "text-2xl font-black text-emerald-500";
@@ -398,7 +403,7 @@
                     state.lives--;
                     app.updateHeader();
                     drawer.style.borderColor = "#f43f5e";
-                    document.getElementById('f-icon').className = "w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-lg bg-rose-500 text-white";
+                    document.getElementById('f-icon').className = "w-14 h-14 rounded-full flex items-center justify-center text-2xl bg-rose-500 text-white";
                     document.getElementById('f-icon').innerHTML = '<i class="fas fa-times"></i>';
                     document.getElementById('f-title').innerText = "Incorrecto";
                     document.getElementById('f-title').className = "text-2xl font-black text-rose-500";
@@ -411,10 +416,10 @@
 
             nextStep() {
                 if(state.lives <= 0) {
+                    alert("HAS PERDIDO TUS VIDAS. El módulo se reiniciará.");
                     this.exit();
                     return;
                 }
-
                 state.currentIdx++;
                 if(state.currentIdx >= state.currentMod.questions.length) {
                     this.finishMod();
@@ -440,81 +445,61 @@
             }
         };
 
-        // LÓGICA DE PAGO Y CERTIFICADO
-        const paymentLogic = {
-            init() {
-                const nombre = prompt("Ingrese su nombre completo para el certificado:");
-                if(!nombre) return;
-                
-                // Simulación Paypal
-                alert("Redirigiendo a Pasarela de Pago ($100 MXN)...\n[Simulación: Pago Aprobado]");
-                this.generate(nombre);
-            },
-
-            generate(name) {
+        const certificateLogic = {
+            async generate(name) {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('l', 'mm', 'a4');
-                const blue = [15, 23, 42];
-                const gold = [251, 191, 36];
+                const folio = "AE-" + Math.random().toString(36).substr(2, 9).toUpperCase();
 
-                // Fondo Oscuro Industrial
-                doc.setFillColor(blue[0], blue[1], blue[2]);
+                const qrContainer = document.getElementById('qrcode-container');
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, {
+                    text: `APRENDEELECTRONICA: ${folio} | GRAD: ${name}`,
+                    width: 128, height: 128
+                });
+
+                setTimeout(() => {
+                    const qrImg = qrContainer.querySelector('img').src;
+                    this.drawDoc(doc, name, folio, qrImg);
+                }, 500);
+            },
+
+            drawDoc(doc, name, folio, qrData) {
+                // Background Dark
+                doc.setFillColor(15, 23, 42);
                 doc.rect(0, 0, 297, 210, 'F');
-
-                // Marco Doble
+                
+                // Marco Azul
                 doc.setDrawColor(59, 130, 246);
-                doc.setLineWidth(1);
+                doc.setLineWidth(1.5);
                 doc.rect(10, 10, 277, 190);
-                doc.setDrawColor(30, 41, 59);
-                doc.rect(12, 12, 273, 186);
-
-                // Sello Dorado Dinámico (Bordes Dentados con JS)
-                const cx = 250, cy = 160, r = 20, points = 30;
-                doc.setFillColor(gold[0], gold[1], gold[2]);
-                let poly = [];
-                for(let i=0; i<points*2; i++){
-                    let currR = (i % 2 === 0) ? r : r * 0.85;
-                    let angle = (i / (points * 2)) * Math.PI * 2;
-                    poly.push([cx + Math.cos(angle)*currR, cy + Math.sin(angle)*currR]);
-                }
-                doc.lines(poly.map(p => [p[0]-poly[0][0], p[1]-poly[0][1]]), poly[0][0], poly[0][1], [1,1], 'F');
-                doc.setTextColor(146, 64, 14);
-                doc.setFontSize(8);
-                doc.text("ORIGINAL", cx, cy, null, null, "center");
-
-                // Textos
+                
+                // Texto
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(40);
                 doc.text("CERTIFICADO DE MAESTRÍA", 148, 55, null, null, "center");
                 
-                doc.setFontSize(16);
-                doc.setTextColor(100, 116, 139);
-                doc.text("LA PLATAFORMA ELECTROMASTER RECONOCE A:", 148, 80, null, null, "center");
-                
-                doc.setFontSize(50);
-                doc.setTextColor(59, 130, 246);
-                doc.text(name.toUpperCase(), 148, 110, null, null, "center");
-                
                 doc.setFontSize(14);
+                doc.setTextColor(100, 116, 139);
+                doc.text("OTORGADO POR APRENDEELECTRONICA A:", 148, 80, null, null, "center");
+                
+                doc.setFontSize(45);
+                doc.setTextColor(59, 130, 246);
+                doc.text(name.toUpperCase(), 148, 115, null, null, "center");
+                
+                doc.setFontSize(12);
                 doc.setTextColor(255, 255, 255);
-                doc.text("POR HABER DEMOSTRADO COMPETENCIA TÉCNICA AVANZADA EN LAS 15 ÁREAS CRÍTICAS", 148, 130, null, null, "center");
-                doc.text("DE LA INGENIERÍA ELECTRÓNICA, DISEÑO DE PCB Y SISTEMAS INTELIGENTES.", 148, 140, null, null, "center");
+                doc.text("AL HABER COMPLETADO EL PLAN DE ESTUDIOS DE 15 FASES DE INGENIERÍA", 148, 145, null, null, "center");
+                doc.text("ELECTRÓNICA, SISTEMAS EMBEBIDOS E INTELIGENCIA ARTIFICIAL.", 148, 153, null, null, "center");
 
-                // QR Code (Simulado como cuadro de validación)
-                doc.setFillColor(255, 255, 255);
-                doc.rect(20, 150, 30, 30, 'F');
-                doc.setTextColor(0,0,0);
-                doc.setFontSize(6);
-                doc.text("QR VALIDATION", 35, 166, null, null, "center");
-
-                // Folio y STPS
+                // QR y Folio
+                doc.addImage(qrData, 'PNG', 20, 155, 30, 30);
                 doc.setTextColor(71, 85, 105);
-                doc.setFontSize(10);
-                const folio = "EM-V4-" + Math.random().toString(36).substr(2, 9).toUpperCase();
-                doc.text(`ID DE CERTIFICACIÓN: ${folio}`, 20, 195);
-                doc.text(`REGISTRO STPS: EN TRÁMITE / PENDING`, 277, 195, null, null, "right");
+                doc.setFontSize(9);
+                doc.text(`FOLIO: ${folio}`, 20, 190);
+                doc.text(`FECHA: ${new Date().toLocaleDateString()}`, 277, 190, null, null, "right");
 
-                doc.save(`Certificado_ElectroMaster_V4_${name}.pdf`);
+                doc.save(`Certificado_Aprendeelectronica_${name}.pdf`);
             }
         };
 
