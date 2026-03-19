@@ -1,68 +1,384 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Electrónica Master | Unified Academy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ElectroMaster - Certificado en Electrónica</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
+    <!-- SDK DE PAYPAL CON TU CLIENT ID REAL -->
+    <script src="https://www.paypal.com/sdk/js?client-id=AR-QoC7atDkoIspwhcuhxNS9QBMCDu4mdIRA5CBHa3nIAcladmgvWn-cJ8scN-0jeqJ004Pw0f-kt4Vm&currency=USD"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         
         :root {
             --primary: #2563eb;
-            --bg-dark: #06080f;
-            --glass: rgba(15, 18, 30, 0.85);
+            --success: #22c55e;
+            --error: #ef4444;
+            --bg-dark: #020617;
         }
 
-        body { 
-            font-family: 'Outfit', sans-serif; 
-            background: var(--bg-dark); 
-            color: white; 
-            margin: 0; 
-            overflow-x: hidden;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f1f5f9;
+            user-select: none;
+            overflow: hidden;
         }
 
-        .glass { 
-            background: var(--glass); 
-            backdrop-filter: blur(16px); 
-            border: 1px solid rgba(255,255,255,0.08); 
+        .path-scroll {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 100px 0 150px 0;
+            scrollbar-width: none;
+        }
+        .path-scroll::-webkit-scrollbar { display: none; }
+
+        .node-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 60px;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .node {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.5);
+            border: 4px solid rgba(255,255,255,0.1);
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+        .node.locked { background: #1e293b !important; opacity: 0.5; cursor: not-allowed; }
+        .node.completed { background: linear-gradient(135deg, #22c55e, #16a34a); border-color: #4ade80; }
+        .node.current { background: linear-gradient(135deg, #3b82f6, #2563eb); border-color: #60a5fa; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 8px 0 #1e3a8a, 0 0 0 0px rgba(59, 130, 246, 0.4); }
+            100% { box-shadow: 0 8px 0 #1e3a8a, 0 0 0 15px rgba(59, 130, 246, 0); }
         }
 
-        .module-card.active {
-            border-left: 4px solid var(--primary);
-            background: rgba(37, 99, 235, 0.1);
+        .label-fase {
+            position: absolute;
+            bottom: -35px;
+            white-space: nowrap;
+            font-size: 0.7rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #94a3b8;
         }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .option-btn { background: #1e293b; border: 2px solid #334155; transition: 0.2s; text-align: left; }
+        .option-btn.correct { background: #064e3b !important; border-color: #22c55e !important; }
+        .option-btn.wrong { background: #7f1d1d !important; border-color: #ef4444 !important; }
+    </style>
+</head>
+<body>
 
-        @media print { 
-            .no-print { display: none !important; } 
-            #cert-section { display: flex !important; background: white !important; } 
-            body { background: white; }
-        }
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 p-4 flex justify-between items-center">
+        <div class="flex flex-col">
+            <span class="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Plataforma Académica</span>
+            <h1 class="text-lg font-black tracking-tighter">ELECTROMASTER V3</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 text-[10px] font-mono text-slate-400">
+                ID: <span id="user-id" class="text-blue-400">Ghfkjlasd0113</span>
+            </div>
+            <div class="text-yellow-500 font-black flex items-center gap-1">
+                <i class="fas fa-star"></i> <span id="xp-val">0</span>
+            </div>
+        </div>
+    </header>
 
-        .shimmer {
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-            background-size: 200% 100%;
-            animation: shimmer 2s infinite;
-        }
+    <!-- Mapa de Aprendizaje -->
+    <div class="path-scroll">
+        <div id="nodes-container" class="node-container"></div>
+    </div>
 
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
+    <!-- Pantalla de Quiz -->
+    <section id="quiz-screen" class="hidden fixed inset-0 z-[100] bg-slate-950 flex flex-col">
+        <div class="p-6 border-b border-slate-900 flex items-center gap-4">
+            <button onclick="quizEngine.close()" class="text-slate-500 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            <div class="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="quiz-progress" class="h-full bg-blue-500 transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+            <h2 id="q-text" class="text-2xl font-bold mb-8 text-center leading-relaxed"></h2>
+            <div id="options" class="grid w-full gap-3"></div>
+        </div>
+        <!-- Feedback de respuesta -->
+        <div id="feedback" class="fixed bottom-0 left-0 right-0 p-8 transform translate-y-full transition-transform duration-300 z-[110]">
+            <div class="max-w-2xl mx-auto flex items-center justify-between gap-4">
+                <div>
+                    <h4 id="fb-title" class="font-black text-xl mb-1"></h4>
+                    <p id="fb-exp" class="text-sm opacity-90"></p>
+                </div>
+                <button id="fb-btn" class="px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-xl min-w-[160px]"></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal de Pago y Certificado -->
+    <div id="cert-modal" class="hidden fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="bg-white text-slate-900 w-full max-w-lg rounded-[2.5rem] p-10 text-center shadow-2xl relative">
+            <div id="payment-area">
+                <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6">
+                    <i class="fas fa-award"></i>
+                </div>
+                <h2 class="text-3xl font-black mb-2 tracking-tight">EXAMEN SUPERADO</h2>
+                <p class="text-slate-500 font-medium mb-8">Has validado tus conocimientos en <span id="payment-rank" class="text-blue-600 font-bold"></span>. Obtén tu certificado oficial.</p>
+                
+                <div class="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-8 flex justify-between items-center text-left">
+                    <div>
+                        <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest">Concepto</p>
+                        <p class="font-bold text-slate-800">Certificado Profesional</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest">Inversión</p>
+                        <p class="text-xl font-black text-blue-600">$9.99 USD</p>
+                    </div>
+                </div>
+
+                <div id="paypal-button-container" class="mb-4"></div>
+                
+                <button onclick="ui.closeCert()" class="text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600">Cancelar</button>
+            </div>
+
+            <div id="download-area" class="hidden">
+                <div class="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2 class="text-3xl font-black mb-2">PAGO EXITOSO</h2>
+                <p class="text-slate-500 font-medium mb-8">Tu certificado para el ID <span class="font-mono font-bold text-slate-800">Ghfkjlasd0113</span> está listo para descargar.</p>
+                <button onclick="certManager.download()" class="w-full bg-slate-900 hover:bg-black text-white py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl">
+                    <i class="fas fa-file-pdf"></i> DESCARGAR CERTIFICADO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const USER_ID = "Ghfkjlasd0113";
+        const CLIENT_ID = "AR-QoC7atDkoIspwhcuhxNS9QBMCDu4mdIRA5CBHa3nIAcladmgvWn-cJ8scN-0jeqJ004Pw0f-kt4Vm";
+
+        const ACADEMIC_DB = [
+            { id: 'mod1', title: 'Fase 1: Redes DC', rank: 'Técnico en Redes DC', icon: 'bolt', questions: [
+                { q: "¿Qué parámetro define la resistencia equivalente en paralelo?", a: ["Suma de R", "Recíproco de la suma de recíprocos", "Producto de R", "Suma de voltajes"], c: 1, exp: "1/Req = 1/R1 + 1/R2..." },
+                { q: "¿Unidad de la conductancia?", a: ["Ohm", "Siemens", "Faradio", "Henry"], c: 1, exp: "La conductancia se mide en Siemens (S)." }
+            ]},
+            { id: 'mod2', title: 'Fase 2: Biomédica', rank: 'Especialista Biomédico', icon: 'heart-pulse', questions: [
+                { q: "¿Qué mide un oxímetro de pulso?", a: ["Glucosa", "Saturación de Oxígeno y pulso", "Presión arterial", "Temperatura"], c: 1, exp: "Mide la absorción de luz en la hemoglobina." },
+                { q: "¿Frecuencia típica de un ECG?", a: ["0.05Hz - 150Hz", "1kHz - 10kHz", "50Hz exactos", "1MHz"], c: 0, exp: "El ancho de banda diagnóstico va de 0.05 a 150Hz." }
+            ]},
+            { id: 'mod3', title: 'Fase 3: IA & RF', rank: 'Ingeniero en IA & RF', icon: 'microchip', questions: [
+                { q: "¿Qué es una NPU?", a: ["Placa de red", "Neural Processing Unit", "Fuente de poder", "Sensor"], c: 1, exp: "Hardware diseñado para acelerar redes neuronales." },
+                { q: "El protocolo Matter busca:", a: ["Más cables", "Interoperabilidad universal", "Menos seguridad", "Solo Apple"], c: 1, exp: "Estándar para que dispositivos de distintas marcas hablen entre sí." }
+            ]}
+        ];
+
+        let state = {
+            xp: parseInt(localStorage.getItem('em_xp')) || 0,
+            completed: JSON.parse(localStorage.getItem('em_paid_certs')) || [],
+            currentFase: null,
+            quizIdx: 0,
+            correctCount: 0,
+            isAnswering: false
+        };
+
+        const quizEngine = {
+            start(faseId) {
+                const fase = ACADEMIC_DB.find(f => f.id === faseId);
+                const idx = ACADEMIC_DB.indexOf(fase);
+                if (idx > 0 && !state.completed.includes(ACADEMIC_DB[idx-1].id)) {
+                    alert("Debes completar la fase anterior antes de avanzar.");
+                    return;
+                }
+
+                state.currentFase = fase;
+                state.quizIdx = 0;
+                state.correctCount = 0;
+                document.getElementById('quiz-screen').classList.remove('hidden');
+                this.render();
+            },
+            render() {
+                const q = state.currentFase.questions[state.quizIdx];
+                if (!q) { this.finish(); return; }
+                
+                state.isAnswering = true;
+                document.getElementById('q-text').innerText = q.q;
+                document.getElementById('quiz-progress').style.width = `${(state.quizIdx / state.currentFase.questions.length) * 100}%`;
+                
+                const optBox = document.getElementById('options');
+                optBox.innerHTML = '';
+                q.a.forEach((opt, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = "option-btn p-5 rounded-2xl font-bold text-lg active:scale-95";
+                    btn.innerText = opt;
+                    btn.onclick = () => this.check(i);
+                    optBox.appendChild(btn);
+                });
+            },
+            check(i) {
+                if (!state.isAnswering) return;
+                state.isAnswering = false;
+                const q = state.currentFase.questions[state.quizIdx];
+                const win = i === q.c;
+                if(win) {
+                    state.correctCount++;
+                    state.xp += 50;
+                    document.getElementById('xp-val').innerText = state.xp;
+                    localStorage.setItem('em_xp', state.xp);
+                }
+
+                const btns = document.getElementById('options').children;
+                btns[i].classList.add(win ? 'correct' : 'wrong');
+                if(!win) btns[q.c].classList.add('correct');
+                
+                this.showFeedback(win, q.exp);
+            },
+            showFeedback(win, exp) {
+                const fb = document.getElementById('feedback');
+                fb.classList.remove('translate-y-full');
+                fb.className = `fixed bottom-0 left-0 right-0 p-8 z-[110] border-t-8 transition-all ${win ? 'bg-green-950 border-green-500 text-green-100' : 'bg-red-950 border-red-500 text-red-100'}`;
+                
+                document.getElementById('fb-title').innerText = win ? "CORRECTO" : "ERROR";
+                document.getElementById('fb-exp').innerText = exp;
+                
+                const btn = document.getElementById('fb-btn');
+                btn.innerText = "Siguiente";
+                btn.className = `px-10 py-4 rounded-2xl font-black uppercase ${win ? 'bg-green-600' : 'bg-red-600'}`;
+                btn.onclick = () => {
+                    fb.classList.add('translate-y-full');
+                    state.quizIdx++;
+                    this.render();
+                };
+            },
+            finish() {
+                const ratio = state.correctCount / state.currentFase.questions.length;
+                if (ratio >= 0.8) {
+                    confetti({ particleCount: 150, spread: 70 });
+                    ui.showPaymentModal();
+                } else {
+                    alert("Aciertos insuficientes. Necesitas al menos el 80%.");
+                    this.close();
+                }
+            },
+            close() { document.getElementById('quiz-screen').classList.add('hidden'); }
+        };
+
+        const ui = {
+            renderMap() {
+                const container = document.getElementById('nodes-container');
+                container.innerHTML = '';
+                ACADEMIC_DB.forEach((f, i) => {
+                    const done = state.completed.includes(f.id);
+                    const current = !done && (i === 0 || state.completed.includes(ACADEMIC_DB[i-1].id));
+                    const locked = !done && !current;
+                    
+                    const node = document.createElement('div');
+                    node.className = `node ${locked ? 'locked' : (done ? 'completed' : 'current')}`;
+                    node.innerHTML = `<i class="fas fa-${f.icon}"></i><div class="label-fase">${f.title}</div>`;
+                    node.onclick = () => quizEngine.start(f.id);
+                    container.appendChild(node);
+                });
+            },
+            showPaymentModal() {
+                document.getElementById('payment-rank').innerText = state.currentFase.rank;
+                document.getElementById('cert-modal').classList.remove('hidden');
+                document.getElementById('payment-area').classList.remove('hidden');
+                document.getElementById('download-area').classList.add('hidden');
+                this.initPayPal();
+            },
+            initPayPal() {
+                document.getElementById('paypal-button-container').innerHTML = '';
+                paypal.Buttons({
+                    style: { layout: 'vertical', color: 'blue', shape: 'rect' },
+                    createOrder: (data, actions) => {
+                        return actions.order.create({
+                            purchase_units: [{
+                                amount: { currency_code: 'USD', value: '9.99' },
+                                description: `Certificación ${state.currentFase.rank} - ID ${USER_ID}`
+                            }]
+                        });
+                    },
+                    onApprove: (data, actions) => {
+                        return actions.order.capture().then(() => {
+                            state.completed.push(state.currentFase.id);
+                            localStorage.setItem('em_paid_certs', JSON.stringify(state.completed));
+                            document.getElementById('payment-area').classList.add('hidden');
+                            document.getElementById('download-area').classList.remove('hidden');
+                            confetti({ particleCount: 200, spread: 100 });
+                            this.renderMap();
+                        });
+                    }
+                }).render('#paypal-button-container');
+            },
+            closeCert() { document.getElementById('cert-modal').classList.add('hidden'); }
+        };
+
+        const certManager = {
+            download() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+                const rank = state.currentFase.rank;
+
+                // Diseño de Certificado Premium
+                doc.setFillColor(15, 23, 42);
+                doc.rect(0, 0, 297, 210, 'F');
+                doc.setDrawColor(37, 99, 235);
+                doc.setLineWidth(4);
+                doc.rect(10, 10, 277, 190);
+
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(30);
+                doc.text("ELECTROMASTER ACADEMY", 148, 50, null, null, "center");
+                
+                doc.setFontSize(14);
+                doc.setTextColor(148, 163, 184);
+                doc.text("CERTIFICADO DE COMPETENCIA PROFESIONAL", 148, 70, null, null, "center");
+                
+                doc.setTextColor(37, 99, 235);
+                doc.setFontSize(40);
+                doc.text(USER_ID, 148, 100, null, null, "center");
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(14);
+                doc.text(`Ha demostrado dominio académico y práctico en:`, 148, 120, null, null, "center");
+                
+                doc.setFontSize(26);
+                doc.setTextColor(34, 197, 94);
+                doc.text(rank.toUpperCase(), 148, 140, null, null, "center");
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100, 116, 139);
+                const fecha = new Date().toLocaleDateString();
+                doc.text(`VERIFICACIÓN: EM-${USER_ID}-${Date.now()}`, 148, 180, null, null, "center");
+                doc.text(`Fecha de emisión: ${fecha} | Avalado por ElectroMaster V3`, 148, 188, null, null, "center");
+
+                doc.save(`Certificado_${USER_ID}.pdf`);
+            }
+        };
+
+        window.onload = () => {
+            document.getElementById('xp-val').innerText = state.xp;
+            ui.renderMap();
+        };
+    </script>
+</body>
+</html>            0% { background-position: -200% 0; }
             100% { background-position: 200% 0; }
         }
     </style>
