@@ -1,341 +1,206 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ReparaPro Elite Academy | Manual Validation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJnameIjogIkVsZWN0cm9NYXN0ZXIgVjMgT05FIiwKICAic2hvcnRfbmFtZSI6ICJFbGVjdHJvTSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiaWNvbnMiOiBbIHsgInNyYyI6ICJodHRwczovL2Nkbi1pY29ucy1wbmcuZmxhdGljb24uY29tLzUxMi8yOTA1LzI5MDUyMjIucG5nIiwgInNpemVzIjogIjUxMng1MTIiLCAidHlwZSI6ICJpbWFnZS9wbmciIH0gXQp9">
     
+    <title>ElectroMaster V3 - Pro Learning MVP</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=JetBrains+Mono&display=swap');
+        :root { --primary: #3b82f6; --bg-dark: #0f172a; }
+        body { font-family: 'Nunito', sans-serif; background-color: var(--bg-dark); color: white; user-select: none; overflow-x: hidden; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .node-active { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .lab-drop-zone { border: 2px dashed rgba(59, 130, 246, 0.4); transition: all 0.3s ease; }
+        .lab-drop-zone.hover { background: rgba(59, 130, 246, 0.2); border-color: var(--primary); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Auth Overlay -->
+    <div id="authOverlay" class="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+        <div class="mb-8">
+            <i class="fas fa-bolt text-blue-500 text-7xl animate-bounce"></i>
+            <h1 class="text-4xl font-black mt-4 italic">ELECTRO<span class="text-blue-500">MASTER</span></h1>
+            <p class="text-slate-400 mt-2">Nivel MVP Comercial</p>
+        </div>
+        <button id="btnGoogleAuth" class="bg-white text-slate-950 px-8 py-4 rounded-2xl font-bold flex items-center gap-3 active:scale-95 transition-transform">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+            Iniciar con Google
+        </button>
+    </div>
+
+    <!-- HUD -->
+    <header id="hud" class="fixed top-0 w-full glass-panel z-50 px-4 py-3 flex justify-between items-center hidden">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-1 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700">
+                <i class="fas fa-heart text-red-500"></i>
+                <span id="stat-lives" class="font-bold">5</span>
+            </div>
+            <div class="flex items-center gap-1 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700">
+                <i class="fas fa-star text-yellow-400"></i>
+                <span id="stat-xp" class="font-bold">0</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <img id="userAvatar" src="" class="w-8 h-8 rounded-full border-2 border-blue-500">
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main id="appContent" class="flex-grow pt-20 pb-24 hidden">
+        <section id="pathMap" class="flex flex-col items-center gap-8 py-8"></section>
+    </main>
+
+    <!-- Modal Pago WhatsApp (Sustituto Stripe para MVP rápido) -->
+    <div id="premiumOverlay" class="fixed inset-0 z-[70] bg-slate-950/90 backdrop-blur-sm hidden flex items-center justify-center p-6">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-sm w-full text-center">
+            <i class="fas fa-crown text-yellow-500 text-5xl mb-4"></i>
+            <h3 class="text-2xl font-bold mb-2">Desbloquea el Nivel Pro</h3>
+            <p class="text-slate-400 mb-6 text-sm">Obtén acceso a laboratorios avanzados y certificados verificados por solo $9.99 USD.</p>
+            <button onclick="ui.payViaWhatsApp()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3">
+                <i class="fab fa-whatsapp text-xl"></i>
+                Pagar vía WhatsApp
+            </button>
+            <button onclick="document.getElementById('premiumOverlay').classList.add('hidden')" class="mt-4 text-slate-500 text-sm">Más tarde</button>
+        </div>
+    </div>
+
+    <!-- Modals Lab / Quiz (Simplified for logic) -->
+    <div id="labOverlay" class="fixed inset-0 z-[60] bg-slate-950 hidden flex flex-col p-6">
+        <header class="flex justify-between items-center mb-10">
+            <h2 class="text-xl font-black"><i class="fas fa-flask mr-2 text-blue-500"></i>LAB INTERACTIVO</h2>
+            <button onclick="ui.closeLab()" class="text-slate-400 text-2xl">&times;</button>
+        </header>
+        <div class="flex-grow flex flex-col items-center">
+            <div id="circuitBoard" class="w-64 h-64 bg-slate-900 border-2 border-dashed border-slate-700 rounded-3xl relative mb-10">
+                <div id="targetZone" class="lab-drop-zone absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-xl flex items-center justify-center">
+                    <span class="text-[10px] text-slate-500">SOLTAR AQUÍ</span>
+                </div>
+            </div>
+            <div id="dragResistor" draggable="true" class="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center cursor-grab active:cursor-grabbing">
+                <i class="fas fa-wave-square text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-0 w-full glass-panel py-4 px-8 flex justify-around border-t border-slate-800 hidden" id="mainNav">
+        <button class="text-blue-500 text-2xl"><i class="fas fa-home"></i></button>
+        <button onclick="ui.openLab()" class="text-slate-400 text-2xl"><i class="fas fa-flask"></i></button>
+        <button onclick="document.getElementById('premiumOverlay').classList.remove('hidden')" class="text-yellow-500 text-2xl"><i class="fas fa-crown"></i></button>
+    </nav>
+
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyACidwxVX3idvV2LLZ8gnwpa6Pq_cTv28I",
-            authDomain: "roboclass-40e9b.firebaseapp.com",
-            projectId: "roboclass-40e9b",
-            storageBucket: "roboclass-40e9b.firebasestorage.app",
-            messagingSenderId: "694414730253",
-            appId: "1:694414730253:web:0e9622b349d7596e58e144",
-            measurementId: "G-G18N3386PW"
-        };
-
-        const appId = "roboclass-40e9b";
+        const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'electromaster-v3';
 
-        // CONFIGURACIÓN
-        const TU_WHATSAPP = "5648515663"; 
-        const PRECIO_CERT = "25.00 USD";
+        const state = {
+            xp: 0,
+            lives: 5,
+            completed: []
+        };
 
-        const COURSE_CONTENT = [
-            { id: 'm1', title: 'Soldadura SMD Nivel 1', video: 'dQw4w9WgXcQ' },
-            { id: 'm2', title: 'Lectura de Esquemas', video: 'P_H9-fB0K_0' },
-            { id: 'm3', title: 'Reballing Avanzado', video: 'dQw4w9WgXcQ' },
-            { id: 'm4', title: 'Diagnóstico de Cortos', video: 'P_H9-fB0K_0' }
+        const modules = [
+            { id: 'm1', title: 'Fundamentos', type: 'theory' },
+            { id: 'm2', title: 'Lab 1: Resistencia', type: 'lab' },
+            { id: 'm3', title: 'Certificación', type: 'exam' }
         ];
 
-        window.user = null;
-        window.userData = null;
-
-        // --- AUTH ---
-        window.handleAuthAction = async (type) => {
-            const email = document.getElementById('auth-email').value.trim();
-            const pass = document.getElementById('auth-pass').value;
-            const name = document.getElementById('auth-name').value.trim();
-
-            if (!email || !pass) return showToast("Falta email o contraseña", "error");
-
-            try {
-                if (type === 'signup') {
-                    if (!name) return showToast("El nombre es obligatorio", "error");
-                    const res = await createUserWithEmailAndPassword(auth, email, pass);
-                    // Crear perfil inmediatamente
-                    await setDoc(doc(db, 'artifacts', appId, 'users', res.user.uid, 'profile'), {
-                        displayName: name,
-                        email: email,
-                        isPaid: false, 
-                        progress: { modulesCompleted: [] },
-                        enrolledAt: new Date().toISOString()
-                    });
-                    showToast("Cuenta creada exitosamente", "success");
-                } else {
-                    await signInWithEmailAndPassword(auth, email, pass);
+        window.ui = {
+            updateHUD: () => {
+                document.getElementById('stat-xp').textContent = state.xp;
+                document.getElementById('stat-lives').textContent = state.lives;
+            },
+            renderMap: () => {
+                const container = document.getElementById('pathMap');
+                container.innerHTML = '';
+                modules.forEach(m => {
+                    const btn = document.createElement('button');
+                    btn.className = `w-20 h-20 rounded-full border-4 ${state.completed.includes(m.id) ? 'bg-green-600 border-green-400' : 'bg-blue-600 border-blue-400'} text-white text-2xl mb-2`;
+                    btn.innerHTML = `<i class="fas ${m.type === 'theory' ? 'fa-book' : 'fa-flask'}"></i>`;
+                    btn.onclick = () => m.type === 'lab' ? ui.openLab() : ui.completeModule(m.id);
+                    container.appendChild(btn);
+                    const label = document.createElement('span');
+                    label.className = "text-xs font-bold text-slate-500 mb-6";
+                    label.textContent = m.title;
+                    container.appendChild(label);
+                });
+            },
+            completeModule: async (id) => {
+                if (!state.completed.includes(id)) {
+                    state.completed.push(id);
+                    state.xp += 100;
+                    ui.updateHUD();
+                    ui.renderMap();
+                    await saveProgress();
+                    confetti();
                 }
-            } catch (err) { 
-                console.error(err.code);
-                if(err.code === 'auth/weak-password') showToast("Mínimo 6 caracteres", "error");
-                else if(err.code === 'auth/email-already-in-use') showToast("Email ya registrado", "error");
-                else showToast("Error de acceso: " + err.message, "error");
+            },
+            openLab: () => document.getElementById('labOverlay').classList.remove('hidden'),
+            closeLab: () => document.getElementById('labOverlay').classList.add('hidden'),
+            
+            // LÓGICA DE WHATSAPP PARA PAGOS
+            payViaWhatsApp: () => {
+                const phone = "5215500000000"; // Tu número real aquí
+                const message = encodeURIComponent(`¡Hola! Quiero activar mi cuenta Pro en ElectroMaster V3.\nMi ID de usuario es: ${auth.currentUser.uid}\nCorreo: ${auth.currentUser.email}`);
+                window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
             }
         };
 
-        window.logout = () => signOut(auth);
+        const saveProgress = async () => {
+            if (!auth.currentUser) return;
+            const ref = doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'profile', 'progress');
+            await setDoc(ref, { xp: state.xp, lives: state.lives, completed: state.completed }, { merge: true });
+        };
 
-        // --- OBSERVER ---
-        onAuthStateChanged(auth, async (u) => {
-            window.user = u;
-            if (u) {
-                // Verificar si existe el perfil, si no existe esperar un poco (reintento)
-                const checkProfile = async () => {
-                    const snap = await getDoc(doc(db, 'artifacts', appId, 'users', u.uid, 'profile'));
-                    if (snap.exists()) {
-                        window.userData = snap.data();
-                        renderApp();
-                        showSection('app');
-                        // Cargar primer video por defecto
-                        if (!document.getElementById('video-frame').src || document.getElementById('video-frame').src.includes('about:blank')) {
-                            loadVideo(COURSE_CONTENT[0].id);
-                        }
-                    }
-                };
-
-                onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'profile'), (snap) => {
-                    if (snap.exists()) {
-                        window.userData = snap.data();
-                        renderApp();
-                    }
-                });
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.querySelectorAll('#hud, #appContent, #mainNav').forEach(el => el.classList.remove('hidden'));
+                document.getElementById('userAvatar').src = user.photoURL;
                 
-                await checkProfile();
-            } else { 
-                showSection('landing'); 
+                const snap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'progress'));
+                if (snap.exists()) {
+                    Object.assign(state, snap.data());
+                }
+                ui.updateHUD();
+                ui.renderMap();
             }
         });
 
-        // --- RENDER ---
-        function renderApp() {
-            if (!window.userData) return;
-            document.getElementById('user-name-display').innerText = window.userData.displayName;
-            
-            const list = document.getElementById('module-list');
-            list.innerHTML = COURSE_CONTENT.map(mod => `
-                <div class="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition cursor-pointer mb-2 ${window.userData.progress.modulesCompleted.includes(mod.id) ? 'border-l-4 border-blue-500 bg-blue-500/5' : ''}" onclick="loadVideo('${mod.id}')">
-                    <div class="flex items-center gap-4">
-                        <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-blue-500 text-xs font-black">${mod.id.replace('m','')}</div>
-                        <h4 class="font-bold text-sm text-slate-200">${mod.title}</h4>
-                    </div>
-                    ${window.userData.progress.modulesCompleted.includes(mod.id) ? '<i class="fas fa-check-circle text-emerald-500"></i>' : '<i class="fas fa-play text-[10px] text-slate-700"></i>'}
-                </div>
-            `).join('');
+        document.getElementById('btnGoogleAuth').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 
-            const paywall = document.getElementById('paywall-section');
-            const exam = document.getElementById('exam-ready');
-            if (window.userData.isPaid) {
-                paywall.classList.add('hidden');
-                exam.classList.remove('hidden');
-            } else {
-                paywall.classList.remove('hidden');
-                exam.classList.add('hidden');
-            }
-        }
+        // Lab Interactions
+        const dragItem = document.getElementById('dragResistor');
+        const dropZone = document.getElementById('targetZone');
 
-        window.loadVideo = (id) => {
-            const mod = COURSE_CONTENT.find(m => m.id === id);
-            document.getElementById('video-frame').src = `https://www.youtube.com/embed/${mod.video}?autoplay=1`;
-            document.getElementById('video-title').innerText = mod.title;
-            document.getElementById('mark-btn').onclick = () => window.markComplete(id);
-            showSubView('content');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
+        dragItem.addEventListener('dragstart', (e) => e.dataTransfer.setData('text', 'component'));
+        dropZone.addEventListener('dragover', (e) => e.preventDefault());
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.innerHTML = `<i class="fas fa-check text-green-500 text-3xl"></i>`;
+            ui.completeModule('m2');
+            setTimeout(() => ui.closeLab(), 1500);
+        });
 
-        window.markComplete = async (id) => {
-            const current = window.userData.progress.modulesCompleted;
-            if(!current.includes(id)) {
-                await updateDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile'), {
-                    "progress.modulesCompleted": [...current, id]
-                });
-                showToast("Progreso guardado", "success");
-            }
-        };
-
-        window.payViaWhatsApp = () => {
-            const msg = `¡Hola ReparaPro! Soy ${window.userData.displayName}. Solicito validación de pago para certificado técnico. Mi correo es: ${window.userData.email}.`;
-            window.open(`https://wa.me/${TU_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank');
-        };
-
-        window.generateCert = () => {
-            const certId = "RP-" + Math.random().toString(36).toUpperCase().slice(2, 10);
-            document.getElementById('out-name').innerText = window.userData.displayName.toUpperCase();
-            document.getElementById('out-id').innerText = certId;
-            showSection('cert');
-        };
-
-    </script>
-
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap');
-        body { font-family: 'Outfit', sans-serif; background: #080a12; color: white; margin: 0; overflow-x: hidden; }
-        .glass { background: rgba(15, 18, 30, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.06); }
-        .hidden { display: none !important; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        @media print { .no-print { display: none !important; } #cert-section { display: flex !important; background: white; } }
-    </style>
-</head>
-<body>
-
-    <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-x-full transition-all duration-300 p-4 rounded-xl font-bold shadow-2xl"></div>
-
-    <!-- REGISTRO / LOGIN -->
-    <section id="landing-section" class="min-h-screen flex items-center justify-center p-6 bg-slate-950">
-        <div class="max-w-md w-full glass p-10 rounded-[2.5rem] space-y-8 shadow-2xl">
-            <div class="text-center">
-                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-blue-600/20">
-                    <i class="fas fa-microchip text-2xl text-white"></i>
-                </div>
-                <h1 class="text-3xl font-black tracking-tighter">REPARAPRO <span class="text-blue-500">ELITE</span></h1>
-                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Plataforma de Capacitación</p>
-            </div>
-            <div class="space-y-3">
-                <input type="text" id="auth-name" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500" placeholder="Nombre completo">
-                <input type="email" id="auth-email" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500" placeholder="Tu Email">
-                <input type="password" id="auth-pass" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 outline-none focus:border-blue-500" placeholder="Contraseña">
-                
-                <div class="grid grid-cols-2 gap-4 pt-4">
-                    <button onclick="handleAuthAction('login')" class="bg-slate-800 py-4 rounded-2xl font-bold hover:bg-slate-700 transition">Entrar</button>
-                    <button onclick="handleAuthAction('signup')" class="bg-blue-600 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/20">Registrarme</button>
-                </div>
-                <p class="text-center text-[10px] text-slate-600 font-bold uppercase py-2">Contenido Técnico 100% Actualizado</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- DASHBOARD -->
-    <section id="app-section" class="hidden min-h-screen no-print">
-        <header class="p-6 flex justify-between items-center glass sticky top-0 z-40 border-b border-white/5">
-            <h2 class="font-black text-xl italic tracking-tighter">CAMPUS <span class="text-blue-500">VIRTUAL</span></h2>
-            <div class="flex items-center gap-4">
-                <div class="text-right hidden sm:block">
-                    <p id="user-name-display" class="text-sm font-bold text-blue-400"></p>
-                    <p class="text-[9px] text-slate-500 font-black uppercase tracking-tighter">Nivel Técnico I</p>
-                </div>
-                <button onclick="logout()" class="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="fas fa-sign-out-alt"></i></button>
-            </div>
-        </header>
-
-        <main class="max-w-7xl mx-auto p-4 md:p-8 grid lg:grid-cols-12 gap-8">
-            <!-- Sidebar -->
-            <div class="lg:col-span-4 space-y-6">
-                <div class="glass p-2 rounded-3xl">
-                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest p-4 pb-2">Contenido del Curso</h3>
-                    <div id="module-list" class="max-h-[500px] overflow-y-auto pr-2"></div>
-                </div>
-                
-                <div onclick="showSubView('exam')" class="p-6 rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer shadow-xl shadow-blue-600/20 hover:scale-[1.02] transition">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-black text-lg">CERTIFICACIÓN</p>
-                            <p class="text-[10px] text-white/70 uppercase">Haz clic para solicitar</p>
-                        </div>
-                        <i class="fas fa-certificate text-3xl text-white/30"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Content -->
-            <div class="lg:col-span-8">
-                <div id="content-view" class="space-y-6">
-                    <div class="aspect-video bg-black rounded-[2rem] overflow-hidden shadow-2xl border border-white/5">
-                        <iframe id="video-frame" class="w-full h-full" src="about:blank" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                    <div class="flex flex-col sm:flex-row justify-between items-start gap-4 px-2">
-                        <div>
-                            <h3 id="video-title" class="text-2xl font-black italic">Inicia tu formación</h3>
-                            <p class="text-slate-500 text-sm">Asegúrate de ver el video completo antes de marcar como visto.</p>
-                        </div>
-                        <button id="mark-btn" class="w-full sm:w-auto bg-emerald-600 px-8 py-4 rounded-2xl font-black shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 transition">COMPLETADO</button>
-                    </div>
-                </div>
-
-                <!-- Pago / Examen -->
-                <div id="exam-view" class="hidden animate-in fade-in duration-500">
-                    <div id="paywall-section" class="glass p-12 rounded-[3.5rem] text-center space-y-8">
-                        <div class="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto text-4xl text-blue-500">
-                            <i class="fas fa-lock"></i>
-                        </div>
-                        <div class="space-y-2">
-                            <h2 class="text-4xl font-black tracking-tighter uppercase italic">Diploma de Especialista</h2>
-                            <p class="text-slate-400 max-w-sm mx-auto">Para recibir tu certificado con validez técnica, solicita la activación vía WhatsApp.</p>
-                        </div>
-                        <div class="max-w-xs mx-auto space-y-4">
-                            <div class="bg-slate-900 p-6 rounded-3xl border border-white/5">
-                                <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Inversión única</p>
-                                <p class="text-4xl font-black">$25.00 <span class="text-sm font-normal text-slate-500">USD</span></p>
-                            </div>
-                            <button onclick="payViaWhatsApp()" class="w-full bg-emerald-600 p-5 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20 hover:bg-emerald-500 transition">
-                                <i class="fab fa-whatsapp text-2xl"></i> PAGAR POR WHATSAPP
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="exam-ready" class="hidden glass p-12 rounded-[3.5rem] text-center space-y-8">
-                        <div class="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-4xl text-emerald-500">
-                            <i class="fas fa-award"></i>
-                        </div>
-                        <h2 class="text-4xl font-black">ACCESO CONCEDIDO</h2>
-                        <p class="text-slate-400">Ya puedes descargar tu diploma digital.</p>
-                        <button onclick="generateCert()" class="w-full max-w-sm bg-blue-600 p-6 rounded-2xl font-black text-xl shadow-2xl hover:bg-blue-500 transition">GENERAR DIPLOMA</button>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </section>
-
-    <!-- CERTIFICADO (PARA IMPRIMIR) -->
-    <section id="cert-section" class="hidden min-h-screen bg-white text-slate-900 p-8 flex items-center justify-center">
-        <div id="cert-area" class="max-w-[1000px] w-full border-[15px] border-slate-900 p-20 bg-white relative text-center">
-            <div class="flex justify-between items-start mb-16">
-                <div class="text-left">
-                    <p class="text-xs font-black tracking-widest text-blue-600 uppercase">ReparaPro Elite Academy</p>
-                </div>
-                <div class="w-16 h-16 border border-slate-200 rounded flex items-center justify-center"><i class="fas fa-microchip text-slate-200 text-3xl"></i></div>
-            </div>
-            <div class="space-y-10">
-                <p class="font-serif italic text-2xl text-slate-400">Certifica oficialmente que</p>
-                <h1 id="out-name" class="text-6xl font-black border-b-4 border-slate-900 inline-block pb-2 px-10 italic">ALUMNO</h1>
-                <p class="text-2xl font-bold tracking-tight text-slate-700">HA COMPLETADO EL CURSO AVANZADO EN<br><span class="text-blue-600 uppercase">Microelectrónica de Dispositivos Móviles</span></p>
-            </div>
-            <div class="flex justify-between items-end mt-32 border-t pt-10 border-slate-100 font-mono text-[9px] text-slate-400 uppercase">
-                <div class="text-left space-y-1">
-                    <p>Serial ID: <span id="out-id" class="text-slate-900 font-bold"></span></p>
-                    <p>Verificación: reparapro.com/check</p>
-                </div>
-                <div class="relative w-28 h-28 bg-slate-900 rounded-full flex items-center justify-center text-amber-500 border-[6px] border-white shadow-xl">
-                    <i class="fas fa-certificate text-4xl"></i>
-                </div>
-                <div class="text-right">
-                    <div class="w-32 h-0.5 bg-slate-900 mb-2 mx-auto"></div>
-                    <p class="font-bold text-slate-900">Dirección Académica</p>
-                </div>
-            </div>
-        </div>
-        <div class="no-print fixed bottom-10 flex gap-4">
-            <button onclick="window.print()" class="bg-slate-900 text-white px-10 py-5 rounded-2xl font-bold shadow-2xl">DESCARGAR PDF / IMPRIMIR</button>
-            <button onclick="location.reload()" class="bg-white text-slate-900 border px-10 py-5 rounded-2xl font-bold">REGRESAR</button>
-        </div>
-    </section>
-
-    <script>
-        function showSection(id) {
-            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(id + '-section').classList.remove('hidden');
-        }
-        function showSubView(id) {
-            document.getElementById('content-view').classList.add('hidden');
-            document.getElementById('exam-view').classList.add('hidden');
-            document.getElementById(id + '-view').classList.remove('hidden');
-        }
-        function showToast(m, t) {
-            const el = document.getElementById('toast');
-            el.innerText = m;
-            el.className = `fixed top-5 right-5 z-[100] p-4 rounded-xl font-bold transition-all ${t==='error'?'bg-red-500':'bg-blue-600'} text-white shadow-2xl`;
-            el.classList.remove('translate-x-full');
-            setTimeout(() => el.classList.add('translate-x-full'), 3000);
-        }
     </script>
 </body>
 </html>
