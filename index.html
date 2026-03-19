@@ -1,972 +1,458 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElectroMaster - Certificado en Electrónica</title>
+    <title>ElectroMaster - TSU en Electrónica</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- SDK DE PAYPAL CON TU CLIENT ID REAL -->
+    <!-- PAYPAL SDK -->
     <script src="https://www.paypal.com/sdk/js?client-id=AR-QoC7atDkoIspwhcuhxNS9QBMCDu4mdIRA5CBHa3nIAcladmgvWn-cJ8scN-0jeqJ004Pw0f-kt4Vm&currency=USD"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
         
-        :root {
-            --primary: #2563eb;
-            --success: #22c55e;
-            --error: #ef4444;
-            --bg-dark: #020617;
-        }
-
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            color: #f1f5f9;
-            user-select: none;
-            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+            background-color: #ffffff;
+            color: #4b4b4b;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .path-scroll {
-            height: 100vh;
-            overflow-y: auto;
-            padding: 100px 0 150px 0;
-            scrollbar-width: none;
+        /* Estilos UI Estilo Duolingo */
+        .duo-card {
+            border: 2px solid #e5e5e5;
+            border-bottom: 6px solid #e5e5e5;
+            transition: all 0.1s;
         }
-        .path-scroll::-webkit-scrollbar { display: none; }
+        .duo-card:active {
+            border-bottom-width: 2px;
+            transform: translateY(4px);
+        }
 
-        .node-container {
+        .btn-primary {
+            background-color: #1cb0f6;
+            border-bottom: 5px solid #1899d6;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #58cc02;
+            border-bottom: 5px solid #46a302;
+            color: white;
+        }
+
+        .path-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 100px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 60px;
         }
 
-        .node {
-            width: 80px;
+        .level-node {
+            width: 90px;
             height: 80px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.8rem;
-            position: relative;
+            color: white;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 8px 0 rgba(0,0,0,0.5);
-            border: 4px solid rgba(255,255,255,0.1);
+            position: relative;
+            margin-bottom: 50px;
+            transition: transform 0.2s;
         }
 
-        .node.locked { background: #1e293b !important; opacity: 0.5; cursor: not-allowed; }
-        .node.completed { background: linear-gradient(135deg, #22c55e, #16a34a); border-color: #4ade80; }
-        .node.current { background: linear-gradient(135deg, #3b82f6, #2563eb); border-color: #60a5fa; animation: pulse 2s infinite; }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 8px 0 #1e3a8a, 0 0 0 0px rgba(59, 130, 246, 0.4); }
-            100% { box-shadow: 0 8px 0 #1e3a8a, 0 0 0 15px rgba(59, 130, 246, 0); }
+        .level-node.completed { 
+            background-color: #ffc800; 
+            border-bottom: 8px solid #e5a500; 
+        }
+        .level-node.current { 
+            background-color: #58cc02; 
+            border-bottom: 8px solid #46a302; 
+            animation: bounce 2.5s infinite; 
+        }
+        .level-node.locked { 
+            background-color: #e5e5e5; 
+            border-bottom: 8px solid #afafaf; 
+            cursor: not-allowed; 
         }
 
-        .label-fase {
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
+
+        .progress-bar-fill {
+            transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Efecto de "puntos" entre nodos */
+        .node-connector {
             position: absolute;
-            bottom: -35px;
-            white-space: nowrap;
-            font-size: 0.7rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            color: #94a3b8;
+            width: 4px;
+            background: #e5e5e5;
+            z-index: 1;
         }
-
-        .option-btn { background: #1e293b; border: 2px solid #334155; transition: 0.2s; text-align: left; }
-        .option-btn.correct { background: #064e3b !important; border-color: #22c55e !important; }
-        .option-btn.wrong { background: #7f1d1d !important; border-color: #ef4444 !important; }
     </style>
 </head>
-<body>
+<body class="bg-gray-50">
 
-    <!-- Header -->
-    <header class="fixed top-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 p-4 flex justify-between items-center">
-        <div class="flex flex-col">
-            <span class="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Plataforma Académica</span>
-            <h1 class="text-lg font-black tracking-tighter">ELECTROMASTER V3</h1>
-        </div>
-        <div class="flex items-center gap-4">
-            <div class="bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 text-[10px] font-mono text-slate-400">
-                ID: <span id="user-id" class="text-blue-400">Ghfkjlasd0113</span>
+    <!-- Header Principal -->
+    <nav class="fixed top-0 left-0 right-0 bg-white border-b-2 border-gray-200 z-50 px-4 py-3">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 bg-[#58cc02] rounded-xl flex items-center justify-center text-white text-xl shadow-sm">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <span class="text-xl font-black text-[#58cc02] tracking-tighter">ElectroMaster <span class="text-gray-300">TSU</span></span>
             </div>
-            <div class="text-yellow-500 font-black flex items-center gap-1">
-                <i class="fas fa-star"></i> <span id="xp-val">0</span>
+            <div class="flex items-center gap-4 font-bold text-gray-400">
+                <div class="flex items-center gap-1 text-orange-500"><i class="fas fa-fire"></i> <span>7</span></div>
+                <div class="flex items-center gap-1 text-red-500"><i class="fas fa-heart"></i> <span>5</span></div>
+                <div class="flex items-center gap-1 text-blue-400"><i class="fas fa-gem"></i> <span id="gems-display">100</span></div>
             </div>
         </div>
-    </header>
+    </nav>
 
-    <!-- Mapa de Aprendizaje -->
-    <div class="path-scroll">
-        <div id="nodes-container" class="node-container"></div>
+    <!-- Mapa de la Ruta Técnica -->
+    <div class="path-container" id="main-map">
+        <!-- Sección de Inicio -->
+        <div class="w-full bg-[#1cb0f6] p-6 rounded-3xl text-white mb-10 duo-card border-none shadow-lg">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-black opacity-80 uppercase text-xs tracking-widest">Módulo 1</h3>
+                    <h2 class="text-2xl font-black">Fundamentos de TSU</h2>
+                </div>
+                <i class="fas fa-book-open text-3xl opacity-50"></i>
+            </div>
+        </div>
+
+        <div id="nodes-layout" class="flex flex-col items-center w-full relative">
+            <!-- Nodos inyectados por JS -->
+        </div>
+        
+        <!-- Botón de Certificación Final -->
+        <div id="final-exam-locked" class="mt-10 p-8 border-4 border-dashed border-gray-200 rounded-3xl text-center w-full opacity-50">
+            <i class="fas fa-lock text-4xl text-gray-300 mb-4"></i>
+            <p class="font-black text-gray-400 uppercase">Examen de Certificación STPS/SEP</p>
+            <p class="text-sm text-gray-300">Completa todas las lecciones anteriores</p>
+        </div>
     </div>
 
-    <!-- Pantalla de Quiz -->
-    <section id="quiz-screen" class="hidden fixed inset-0 z-[100] bg-slate-950 flex flex-col">
-        <div class="p-6 border-b border-slate-900 flex items-center gap-4">
-            <button onclick="quizEngine.close()" class="text-slate-500 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-            <div class="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
-                <div id="quiz-progress" class="h-full bg-blue-500 transition-all duration-500" style="width: 0%"></div>
+    <!-- Pantalla de Aprendizaje (Quiz) -->
+    <div id="quiz-screen" class="hidden fixed inset-0 bg-white z-[100] flex flex-col">
+        <div class="p-6 flex items-center gap-4 max-w-4xl mx-auto w-full">
+            <button onclick="quizEngine.exit()" class="text-gray-300 text-3xl font-bold hover:text-gray-500">×</button>
+            <div class="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden border-2 border-gray-100">
+                <div id="progress-bar" class="progress-bar-fill h-full bg-[#58cc02]" style="width: 0%"></div>
+            </div>
+            <div class="text-red-500 font-bold flex items-center gap-1">
+                <i class="fas fa-heart"></i> <span>5</span>
             </div>
         </div>
-        <div class="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
-            <h2 id="q-text" class="text-2xl font-bold mb-8 text-center leading-relaxed"></h2>
-            <div id="options" class="grid w-full gap-3"></div>
-        </div>
-        <!-- Feedback de respuesta -->
-        <div id="feedback" class="fixed bottom-0 left-0 right-0 p-8 transform translate-y-full transition-transform duration-300 z-[110]">
-            <div class="max-w-2xl mx-auto flex items-center justify-between gap-4">
-                <div>
-                    <h4 id="fb-title" class="font-black text-xl mb-1"></h4>
-                    <p id="fb-exp" class="text-sm opacity-90"></p>
+        
+        <div class="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-2xl mx-auto w-full">
+            <div class="mb-6">
+                <div id="speaker-icon" class="w-20 h-20 bg-blue-100 text-blue-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 cursor-pointer hover:bg-blue-200">
+                    <i class="fas fa-volume-up"></i>
                 </div>
-                <button id="fb-btn" class="px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-xl min-w-[160px]"></button>
+                <h2 id="q-text" class="text-2xl font-black text-gray-700 leading-tight"></h2>
+            </div>
+            
+            <div id="options-grid" class="grid w-full gap-3">
+                <!-- Opciones -->
             </div>
         </div>
-    </section>
 
-    <!-- Modal de Pago y Certificado -->
-    <div id="cert-modal" class="hidden fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
-        <div class="bg-white text-slate-900 w-full max-w-lg rounded-[2.5rem] p-10 text-center shadow-2xl relative">
-            <div id="payment-area">
-                <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6">
-                    <i class="fas fa-award"></i>
-                </div>
-                <h2 class="text-3xl font-black mb-2 tracking-tight">EXAMEN SUPERADO</h2>
-                <p class="text-slate-500 font-medium mb-8">Has validado tus conocimientos en <span id="payment-rank" class="text-blue-600 font-bold"></span>. Obtén tu certificado oficial.</p>
-                
-                <div class="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-8 flex justify-between items-center text-left">
+        <div id="footer-check" class="p-8 border-t-2 border-gray-100 bg-white">
+            <div class="max-w-4xl mx-auto flex justify-between items-center">
+                <div id="feedback-msg" class="hidden flex items-center gap-3">
+                    <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl"></div>
                     <div>
-                        <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest">Concepto</p>
-                        <p class="font-bold text-slate-800">Certificado Profesional</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest">Inversión</p>
-                        <p class="text-xl font-black text-blue-600">$9.99 USD</p>
+                        <h4 id="feedback-status" class="font-black text-lg"></h4>
+                        <p id="feedback-exp" class="text-sm font-bold"></p>
                     </div>
                 </div>
-
-                <div id="paypal-button-container" class="mb-4"></div>
-                
-                <button onclick="ui.closeCert()" class="text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600">Cancelar</button>
-            </div>
-
-            <div id="download-area" class="hidden">
-                <div class="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <h2 class="text-3xl font-black mb-2">PAGO EXITOSO</h2>
-                <p class="text-slate-500 font-medium mb-8">Tu certificado para el ID <span class="font-mono font-bold text-slate-800">Ghfkjlasd0113</span> está listo para descargar.</p>
-                <button onclick="certManager.download()" class="w-full bg-slate-900 hover:bg-black text-white py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl">
-                    <i class="fas fa-file-pdf"></i> DESCARGAR CERTIFICADO
-                </button>
+                <button id="main-action-btn" class="w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-[#e5e5e5] cursor-not-allowed uppercase tracking-wider transition-all">Comprobar</button>
             </div>
         </div>
+    </div>
+
+    <!-- Modal de Certificado (Checkout $100 MXN) -->
+    <div id="cert-modal" class="hidden fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-8 text-center">
+        <div class="w-32 h-32 bg-yellow-100 text-yellow-500 rounded-full flex items-center justify-center text-6xl mb-6 shadow-inner">
+            <i class="fas fa-graduation-cap"></i>
+        </div>
+        <h2 class="text-3xl font-black text-gray-800 mb-4">¡Felicidades, Técnico!</h2>
+        <p class="text-lg text-gray-500 font-bold max-w-sm mb-8">Has completado el programa de <span class="text-blue-500">Mantenimiento de Sistemas</span>. Solo falta un paso para tu certificado oficial.</p>
+        
+        <div class="bg-gray-50 p-6 rounded-[2rem] border-2 border-gray-100 w-full max-w-sm mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <span class="font-black text-gray-400 uppercase text-xs">Cuota de Recuperación</span>
+                <span class="bg-green-100 text-green-600 px-3 py-1 rounded-lg text-xs font-black">OFERTA</span>
+            </div>
+            <div class="text-4xl font-black text-gray-800">$100.00 <span class="text-lg">MXN</span></div>
+            <p class="text-[10px] text-gray-400 mt-2">Incluye: Certificado Digital PDF, Registro en Base de Datos TSU y Validación QR.</p>
+        </div>
+
+        <div id="paypal-container" class="w-full max-w-sm"></div>
+        
+        <button onclick="document.getElementById('cert-modal').classList.add('hidden')" class="mt-8 font-black text-gray-300 uppercase tracking-widest hover:text-gray-500">Cerrar y seguir aprendiendo</button>
     </div>
 
     <script>
-        const USER_ID = "Ghfkjlasd0113";
-        const CLIENT_ID = "AR-QoC7atDkoIspwhcuhxNS9QBMCDu4mdIRA5CBHa3nIAcladmgvWn-cJ8scN-0jeqJ004Pw0f-kt4Vm";
-
-        const ACADEMIC_DB = [
-            { id: 'mod1', title: 'Fase 1: Redes DC', rank: 'Técnico en Redes DC', icon: 'bolt', questions: [
-                { q: "¿Qué parámetro define la resistencia equivalente en paralelo?", a: ["Suma de R", "Recíproco de la suma de recíprocos", "Producto de R", "Suma de voltajes"], c: 1, exp: "1/Req = 1/R1 + 1/R2..." },
-                { q: "¿Unidad de la conductancia?", a: ["Ohm", "Siemens", "Faradio", "Henry"], c: 1, exp: "La conductancia se mide en Siemens (S)." }
+        // CURRÍCULO EXTENDIDO TSU
+        const ACADEMIC_PATH = [
+            { id: 1, title: 'Resistencias', icon: 'bolt', questions: [
+                { q: "¿Cuál es el código de colores para 1kΩ?", a: ["Marrón, Negro, Rojo", "Rojo, Rojo, Naranja", "Marrón, Negro, Naranja"], c: 0, exp: "Marrón (1), Negro (0), Rojo (00) = 1000Ω" },
+                { q: "¿Qué pasa si pongo dos resistencias iguales en paralelo?", a: ["Se duplica la resistencia", "Se reduce a la mitad", "No pasa nada"], c: 1, exp: "Req = R / n cuando son iguales." }
             ]},
-            { id: 'mod2', title: 'Fase 2: Biomédica', rank: 'Especialista Biomédico', icon: 'heart-pulse', questions: [
-                { q: "¿Qué mide un oxímetro de pulso?", a: ["Glucosa", "Saturación de Oxígeno y pulso", "Presión arterial", "Temperatura"], c: 1, exp: "Mide la absorción de luz en la hemoglobina." },
-                { q: "¿Frecuencia típica de un ECG?", a: ["0.05Hz - 150Hz", "1kHz - 10kHz", "50Hz exactos", "1MHz"], c: 0, exp: "El ancho de banda diagnóstico va de 0.05 a 150Hz." }
+            { id: 2, title: 'Multímetros', icon: 'vial', questions: [
+                { q: "¿Cómo se mide la corriente en un circuito?", a: ["En paralelo", "En serie", "No importa"], c: 1, exp: "El amperímetro debe 'ser parte' del camino de la corriente." }
             ]},
-            { id: 'mod3', title: 'Fase 3: IA & RF', rank: 'Ingeniero en IA & RF', icon: 'microchip', questions: [
-                { q: "¿Qué es una NPU?", a: ["Placa de red", "Neural Processing Unit", "Fuente de poder", "Sensor"], c: 1, exp: "Hardware diseñado para acelerar redes neuronales." },
-                { q: "El protocolo Matter busca:", a: ["Más cables", "Interoperabilidad universal", "Menos seguridad", "Solo Apple"], c: 1, exp: "Estándar para que dispositivos de distintas marcas hablen entre sí." }
+            { id: 3, title: 'Diodos y Rectificación', icon: 'wave-square', questions: [
+                { q: "¿Cuál es el voltaje de umbral típico de un diodo de Silicio?", a: ["0.3V", "0.7V", "5V"], c: 1, exp: "El silicio requiere ~0.7V para conducir." }
+            ]},
+            { id: 4, title: 'Mantenimiento PC', icon: 'laptop-medical', questions: [
+                { q: "¿Qué componente evita que el procesador se queme?", a: ["Pasta térmica y disipador", "Fuente de poder", "Memoria RAM"], c: 0, exp: "Transfieren el calor fuera del silicio." }
+            ]},
+            { id: 5, title: 'EXAMEN FINAL TSU', icon: 'award', isExam: true, questions: [
+                { q: "¿Cuál es el estándar de seguridad eléctrica en México?", a: ["NOM-001-SEDE", "ISO-9001", "IEEE-802"], c: 0, exp: "La NOM-001 regula las instalaciones eléctricas en México." }
             ]}
         ];
 
-        let state = {
-            xp: parseInt(localStorage.getItem('em_xp')) || 0,
-            completed: JSON.parse(localStorage.getItem('em_paid_certs')) || [],
-            currentFase: null,
-            quizIdx: 0,
-            correctCount: 0,
-            isAnswering: false
+        let gameState = {
+            completed: JSON.parse(localStorage.getItem('em_completed')) || [],
+            currentLvl: null,
+            qIdx: 0,
+            selected: null,
+            gems: 100
         };
 
         const quizEngine = {
-            start(faseId) {
-                const fase = ACADEMIC_DB.find(f => f.id === faseId);
-                const idx = ACADEMIC_DB.indexOf(fase);
-                if (idx > 0 && !state.completed.includes(ACADEMIC_DB[idx-1].id)) {
-                    alert("Debes completar la fase anterior antes de avanzar.");
-                    return;
-                }
-
-                state.currentFase = fase;
-                state.quizIdx = 0;
-                state.correctCount = 0;
+            start(id) {
+                const lvl = ACADEMIC_PATH.find(l => l.id === id);
+                if (id > 1 && !gameState.completed.includes(id - 1)) return;
+                
+                gameState.currentLvl = lvl;
+                gameState.qIdx = 0;
+                gameState.selected = null;
                 document.getElementById('quiz-screen').classList.remove('hidden');
-                this.render();
+                this.renderQuestion();
             },
-            render() {
-                const q = state.currentFase.questions[state.quizIdx];
-                if (!q) { this.finish(); return; }
-                
-                state.isAnswering = true;
+            renderQuestion() {
+                const q = gameState.currentLvl.questions[gameState.qIdx];
                 document.getElementById('q-text').innerText = q.q;
-                document.getElementById('quiz-progress').style.width = `${(state.quizIdx / state.currentFase.questions.length) * 100}%`;
+                document.getElementById('progress-bar').style.width = `${(gameState.qIdx / gameState.currentLvl.questions.length) * 100}%`;
                 
-                const optBox = document.getElementById('options');
-                optBox.innerHTML = '';
+                const grid = document.getElementById('options-grid');
+                grid.innerHTML = '';
+                
                 q.a.forEach((opt, i) => {
                     const btn = document.createElement('button');
-                    btn.className = "option-btn p-5 rounded-2xl font-bold text-lg active:scale-95";
-                    btn.innerText = opt;
-                    btn.onclick = () => this.check(i);
-                    optBox.appendChild(btn);
+                    btn.className = "duo-card p-4 rounded-2xl font-bold text-lg text-left flex items-center gap-4 hover:bg-gray-50";
+                    btn.innerHTML = `<span class="w-8 h-8 rounded-lg border-2 border-gray-200 flex items-center justify-center text-gray-300 text-sm">${i+1}</span> ${opt}`;
+                    btn.onclick = () => this.selectOption(i, btn);
+                    grid.appendChild(btn);
                 });
+
+                this.resetFooter();
             },
-            check(i) {
-                if (!state.isAnswering) return;
-                state.isAnswering = false;
-                const q = state.currentFase.questions[state.quizIdx];
-                const win = i === q.c;
-                if(win) {
-                    state.correctCount++;
-                    state.xp += 50;
-                    document.getElementById('xp-val').innerText = state.xp;
-                    localStorage.setItem('em_xp', state.xp);
+            selectOption(i, el) {
+                gameState.selected = i;
+                Array.from(document.getElementById('options-grid').children).forEach(c => {
+                    c.classList.remove('border-blue-400', 'bg-blue-50');
+                    c.querySelector('span').classList.replace('border-blue-400', 'border-gray-200');
+                    c.querySelector('span').classList.replace('text-blue-500', 'text-gray-300');
+                });
+                el.classList.add('border-blue-400', 'bg-blue-50');
+                el.querySelector('span').classList.replace('border-gray-200', 'border-blue-400');
+                el.querySelector('span').classList.replace('text-gray-300', 'text-blue-500');
+
+                const btn = document.getElementById('main-action-btn');
+                btn.classList.replace('bg-[#e5e5e5]', 'btn-success');
+                btn.classList.remove('cursor-not-allowed');
+                btn.onclick = () => this.checkAnswer();
+            },
+            checkAnswer() {
+                const q = gameState.currentLvl.questions[gameState.qIdx];
+                const isCorrect = gameState.selected === q.c;
+                
+                const footer = document.getElementById('footer-check');
+                const msg = document.getElementById('feedback-msg');
+                const icon = document.getElementById('feedback-icon');
+                const btn = document.getElementById('main-action-btn');
+
+                msg.classList.remove('hidden');
+                document.getElementById('feedback-status').innerText = isCorrect ? "¡Excelente!" : "Casi lo logras";
+                document.getElementById('feedback-exp').innerText = q.exp;
+                
+                if(isCorrect) {
+                    footer.classList.add('bg-green-100');
+                    icon.className = "w-12 h-12 rounded-full flex items-center justify-center text-white text-xl bg-green-500";
+                    icon.innerHTML = '<i class="fas fa-check"></i>';
+                    btn.innerText = "Continuar";
+                } else {
+                    footer.classList.add('bg-red-100');
+                    icon.className = "w-12 h-12 rounded-full flex items-center justify-center text-white text-xl bg-red-500";
+                    icon.innerHTML = '<i class="fas fa-times"></i>';
+                    btn.className = "w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-red-500 uppercase";
+                    btn.innerText = "Entendido";
                 }
 
-                const btns = document.getElementById('options').children;
-                btns[i].classList.add(win ? 'correct' : 'wrong');
-                if(!win) btns[q.c].classList.add('correct');
-                
-                this.showFeedback(win, q.exp);
-            },
-            showFeedback(win, exp) {
-                const fb = document.getElementById('feedback');
-                fb.classList.remove('translate-y-full');
-                fb.className = `fixed bottom-0 left-0 right-0 p-8 z-[110] border-t-8 transition-all ${win ? 'bg-green-950 border-green-500 text-green-100' : 'bg-red-950 border-red-500 text-red-100'}`;
-                
-                document.getElementById('fb-title').innerText = win ? "CORRECTO" : "ERROR";
-                document.getElementById('fb-exp').innerText = exp;
-                
-                const btn = document.getElementById('fb-btn');
-                btn.innerText = "Siguiente";
-                btn.className = `px-10 py-4 rounded-2xl font-black uppercase ${win ? 'bg-green-600' : 'bg-red-600'}`;
                 btn.onclick = () => {
-                    fb.classList.add('translate-y-full');
-                    state.quizIdx++;
-                    this.render();
+                    if(isCorrect) {
+                        gameState.qIdx++;
+                        if(gameState.qIdx >= gameState.currentLvl.questions.length) {
+                            this.finishLevel();
+                        } else {
+                            this.renderQuestion();
+                        }
+                    } else {
+                        this.renderQuestion();
+                    }
                 };
             },
-            finish() {
-                const ratio = state.correctCount / state.currentFase.questions.length;
-                if (ratio >= 0.8) {
-                    confetti({ particleCount: 150, spread: 70 });
-                    ui.showPaymentModal();
-                } else {
-                    alert("Aciertos insuficientes. Necesitas al menos el 80%.");
-                    this.close();
+            resetFooter() {
+                const footer = document.getElementById('footer-check');
+                footer.className = "p-8 border-t-2 border-gray-100 bg-white";
+                document.getElementById('feedback-msg').classList.add('hidden');
+                const btn = document.getElementById('main-action-btn');
+                btn.className = "w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-[#e5e5e5] cursor-not-allowed uppercase tracking-wider transition-all";
+                btn.innerText = "Comprobar";
+            },
+            finishLevel() {
+                if(!gameState.completed.includes(gameState.currentLvl.id)) {
+                    gameState.completed.push(gameState.currentLvl.id);
+                    localStorage.setItem('em_completed', JSON.stringify(gameState.completed));
                 }
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                
+                if (gameState.currentLvl.isExam) {
+                    document.getElementById('cert-modal').classList.remove('hidden');
+                    this.initPayPal();
+                }
+                this.exit();
+                renderMap();
             },
-            close() { document.getElementById('quiz-screen').classList.add('hidden'); }
-        };
-
-        const ui = {
-            renderMap() {
-                const container = document.getElementById('nodes-container');
-                container.innerHTML = '';
-                ACADEMIC_DB.forEach((f, i) => {
-                    const done = state.completed.includes(f.id);
-                    const current = !done && (i === 0 || state.completed.includes(ACADEMIC_DB[i-1].id));
-                    const locked = !done && !current;
-                    
-                    const node = document.createElement('div');
-                    node.className = `node ${locked ? 'locked' : (done ? 'completed' : 'current')}`;
-                    node.innerHTML = `<i class="fas fa-${f.icon}"></i><div class="label-fase">${f.title}</div>`;
-                    node.onclick = () => quizEngine.start(f.id);
-                    container.appendChild(node);
-                });
-            },
-            showPaymentModal() {
-                document.getElementById('payment-rank').innerText = state.currentFase.rank;
-                document.getElementById('cert-modal').classList.remove('hidden');
-                document.getElementById('payment-area').classList.remove('hidden');
-                document.getElementById('download-area').classList.add('hidden');
-                this.initPayPal();
-            },
+            exit() { document.getElementById('quiz-screen').classList.add('hidden'); },
             initPayPal() {
-                document.getElementById('paypal-button-container').innerHTML = '';
+                document.getElementById('paypal-container').innerHTML = '';
                 paypal.Buttons({
-                    style: { layout: 'vertical', color: 'blue', shape: 'rect' },
+                    style: { layout: 'vertical', color: 'blue', shape: 'pill' },
                     createOrder: (data, actions) => {
                         return actions.order.create({
                             purchase_units: [{
-                                amount: { currency_code: 'USD', value: '9.99' },
-                                description: `Certificación ${state.currentFase.rank} - ID ${USER_ID}`
+                                amount: { currency_code: 'USD', value: '5.20' }, // Aprox $100 MXN
+                                description: "Certificado TSU ElectroMaster"
                             }]
                         });
                     },
                     onApprove: (data, actions) => {
                         return actions.order.capture().then(() => {
-                            state.completed.push(state.currentFase.id);
-                            localStorage.setItem('em_paid_certs', JSON.stringify(state.completed));
-                            document.getElementById('payment-area').classList.add('hidden');
-                            document.getElementById('download-area').classList.remove('hidden');
-                            confetti({ particleCount: 200, spread: 100 });
-                            this.renderMap();
+                            downloadCertificate();
                         });
                     }
-                }).render('#paypal-button-container');
-            },
-            closeCert() { document.getElementById('cert-modal').classList.add('hidden'); }
+                }).render('#paypal-container');
+            }
         };
 
-        const certManager = {
-            download() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'mm', 'a4');
-                const rank = state.currentFase.rank;
-
-                // Diseño de Certificado Premium
-                doc.setFillColor(15, 23, 42);
-                doc.rect(0, 0, 297, 210, 'F');
-                doc.setDrawColor(37, 99, 235);
-                doc.setLineWidth(4);
-                doc.rect(10, 10, 277, 190);
-
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(30);
-                doc.text("ELECTROMASTER ACADEMY", 148, 50, null, null, "center");
+        function renderMap() {
+            const container = document.getElementById('nodes-layout');
+            container.innerHTML = '';
+            
+            ACADEMIC_PATH.forEach((l, i) => {
+                const isDone = gameState.completed.includes(l.id);
+                const isNext = !isDone && (i === 0 || gameState.completed.includes(ACADEMIC_PATH[i-1].id));
+                const isLocked = !isDone && !isNext;
                 
-                doc.setFontSize(14);
-                doc.setTextColor(148, 163, 184);
-                doc.text("CERTIFICADO DE COMPETENCIA PROFESIONAL", 148, 70, null, null, "center");
+                const node = document.createElement('div');
+                node.className = `level-node ${isDone ? 'completed' : (isNext ? 'current' : 'locked')}`;
                 
-                doc.setTextColor(37, 99, 235);
-                doc.setFontSize(40);
-                doc.text(USER_ID, 148, 100, null, null, "center");
+                // Efecto serpiente
+                const offset = Math.sin(i * 1.5) * 80;
+                node.style.transform = `translateX(${offset}px)`;
                 
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(14);
-                doc.text(`Ha demostrado dominio académico y práctico en:`, 148, 120, null, null, "center");
+                node.innerHTML = `<i class="fas fa-${l.icon}"></i>`;
+                node.onclick = () => quizEngine.start(l.id);
                 
-                doc.setFontSize(26);
-                doc.setTextColor(34, 197, 94);
-                doc.text(rank.toUpperCase(), 148, 140, null, null, "center");
+                const title = document.createElement('div');
+                title.className = "absolute -bottom-8 font-black text-[10px] text-gray-400 uppercase whitespace-nowrap";
+                title.innerText = l.title;
+                node.appendChild(title);
                 
-                doc.setFontSize(10);
-                doc.setTextColor(100, 116, 139);
-                const fecha = new Date().toLocaleDateString();
-                doc.text(`VERIFICACIÓN: EM-${USER_ID}-${Date.now()}`, 148, 180, null, null, "center");
-                doc.text(`Fecha de emisión: ${fecha} | Avalado por ElectroMaster V3`, 148, 188, null, null, "center");
-
-                doc.save(`Certificado_${USER_ID}.pdf`);
-            }
-        };
-
-        window.onload = () => {
-            document.getElementById('xp-val').innerText = state.xp;
-            ui.renderMap();
-        };
-    </script>
-</body>
-</html>            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-    </style>
-</head>
-<body>
-
-    <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-x-[120%] transition-all duration-500 p-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3"></div>
-
-    <!-- LANDING / LOGIN -->
-    <section id="landing-section" class="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,_rgba(37,99,235,0.15),_transparent_40%),radial-gradient(circle_at_80%_70%,_rgba(59,130,246,0.1),_transparent_40%)]"></div>
-        
-        <div class="max-w-md w-full glass p-8 md:p-12 rounded-[3rem] space-y-8 shadow-2xl relative z-10">
-            <div class="text-center">
-                <div class="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl rotate-6 group hover:rotate-0 transition-transform duration-500">
-                    <i class="fas fa-microchip text-3xl text-white"></i>
-                </div>
-                <h1 class="text-4xl font-black tracking-tighter uppercase italic leading-none">Electrónica <span class="text-blue-500">Master</span></h1>
-                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-3">Elite Repair Academy</p>
-            </div>
-            
-            <div class="space-y-3">
-                <button onclick="loginWithGoogle()" class="w-full bg-white text-slate-900 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-slate-100 transition shadow-xl">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5" alt="Google">
-                    Google Account
-                </button>
-                <button onclick="continueAsGuest()" class="w-full bg-slate-800/50 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition border border-white/5">
-                    <i class="fas fa-user-secret opacity-50"></i> Modo Invitado
-                </button>
-            </div>
-
-            <div class="flex items-center gap-4">
-                <div class="h-[1px] bg-white/10 flex-1"></div>
-                <span class="text-[10px] font-bold text-slate-600 uppercase tracking-widest">O accede con</span>
-                <div class="h-[1px] bg-white/10 flex-1"></div>
-            </div>
-
-            <div class="space-y-3">
-                <div class="space-y-2">
-                    <input type="text" id="auth-name" class="w-full bg-white/5 p-4 rounded-xl border border-white/10 outline-none focus:border-blue-500 text-sm transition-all" placeholder="Tu nombre (Solo registro)">
-                    <input type="email" id="auth-email" class="w-full bg-white/5 p-4 rounded-xl border border-white/10 outline-none focus:border-blue-500 text-sm transition-all" placeholder="Email">
-                    <input type="password" id="auth-pass" class="w-full bg-white/5 p-4 rounded-xl border border-white/10 outline-none focus:border-blue-500 text-sm transition-all" placeholder="Contraseña">
-                </div>
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="handleEmailAuth('login')" class="bg-slate-800 py-4 rounded-xl font-bold text-sm hover:bg-slate-700 transition">Entrar</button>
-                    <button onclick="handleEmailAuth('signup')" class="btn-primary py-4 rounded-xl font-bold text-sm">Registrar</button>
-                </div>
-            </div>
-
-            <button onclick="showSection('verify-public')" class="w-full text-slate-500 text-[10px] font-bold uppercase tracking-widest hover:text-white transition py-2">
-                <i class="fas fa-certificate mr-2"></i> Verificar Diploma
-            </button>
-        </div>
-    </section>
-
-    <!-- PUBLIC VERIFICATION -->
-    <section id="verify-public-section" class="hidden min-h-screen flex flex-col items-center justify-center p-6 bg-slate-950">
-        <div class="max-w-md w-full glass p-10 rounded-[3rem] text-center space-y-8 border border-blue-500/20">
-            <div>
-                <i class="fas fa-shield-check text-4xl text-blue-500 mb-4"></i>
-                <h2 class="text-2xl font-black italic uppercase">Validación Oficial</h2>
-                <p class="text-slate-400 text-xs mt-2 uppercase tracking-widest">Ingresa el código del certificado</p>
-            </div>
-            
-            <input type="text" id="verify-input" class="w-full bg-slate-900 p-5 rounded-2xl border border-white/10 text-center font-mono text-xl tracking-widest focus:border-blue-500 outline-none" placeholder="EM-XXXX-XXXX">
-            
-            <button onclick="verifyCertificate()" class="w-full btn-primary py-5 rounded-2xl font-black shadow-lg">CONSULTAR REGISTRO</button>
-            
-            <div id="verify-result" class="min-h-[60px] flex items-center justify-center"></div>
-            
-            <button onclick="showSection('landing')" class="text-[10px] text-slate-500 font-black uppercase tracking-widest hover:text-white transition">
-                <i class="fas fa-arrow-left mr-2"></i> Volver al Inicio
-            </button>
-        </div>
-    </section>
-
-    <!-- DASHBOARD -->
-    <section id="app-section" class="hidden min-h-screen no-print flex flex-col">
-        <header class="p-4 md:px-8 flex justify-between items-center glass sticky top-0 z-50 border-b border-white/5">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center rotate-3">
-                    <i class="fas fa-bolt text-white text-xs"></i>
-                </div>
-                <h2 class="font-black italic text-lg tracking-tighter">ELECTRONICA <span class="text-blue-500">MASTER</span></h2>
-            </div>
-            
-            <div class="flex items-center gap-4">
-                <div class="hidden sm:block text-right">
-                    <p id="user-name-display" class="text-xs font-black text-white"></p>
-                    <div id="guest-banner" class="hidden text-[8px] bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded-full font-black uppercase tracking-widest inline-block mt-1">Visitante</div>
-                </div>
-                <button onclick="logout()" class="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg border border-red-500/20">
-                    <i class="fas fa-power-off text-sm"></i>
-                </button>
-            </div>
-        </header>
-
-        <main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8 grid lg:grid-cols-12 gap-8">
-            <!-- Sidebar Navigation -->
-            <div class="lg:col-span-4 space-y-6">
-                <div class="glass p-2 rounded-[2.5rem] shadow-xl overflow-hidden">
-                    <div class="p-6 pb-2">
-                        <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Plan de Estudios</h3>
-                    </div>
-                    <div id="module-list" class="max-h-[500px] overflow-y-auto px-2 pb-6 custom-scrollbar space-y-2"></div>
-                </div>
-                
-                <div onclick="showSubView('exam')" class="group p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-indigo-900 cursor-pointer shadow-2xl hover:scale-[1.02] active:scale-95 transition-all relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform">
-                        <i class="fas fa-award text-5xl"></i>
-                    </div>
-                    <p class="font-black text-2xl italic tracking-tighter leading-tight">MI ÁREA DE<br>GRADUACIÓN</p>
-                    <div id="cert-status-msg" class="mt-4 inline-block px-3 py-1 bg-black/20 rounded-full"></div>
-                </div>
-            </div>
-
-            <!-- Content Area -->
-            <div class="lg:col-span-8">
-                <!-- Video Player View -->
-                <div id="content-view" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div class="aspect-video bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-white/5 relative group">
-                        <iframe id="video-frame" class="w-full h-full" src="about:blank" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                    
-                    <div class="flex flex-col md:flex-row justify-between items-center gap-6 glass p-8 rounded-[3rem] border-t border-white/10">
-                        <div>
-                            <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Clase Actual</p>
-                            <h3 id="video-title" class="text-2xl font-black italic tracking-tighter">Selecciona un módulo</h3>
-                        </div>
-                        <button id="mark-btn" class="w-full md:w-auto btn-primary px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest">
-                            Completar Clase <i class="fas fa-check-circle ml-2"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Exam / Activation View -->
-                <div id="exam-view" class="hidden animate-in zoom-in-95 duration-500">
-                    <div id="paywall-section" class="glass p-12 md:p-20 rounded-[4rem] text-center space-y-8 border border-blue-500/20">
-                        <div class="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto text-4xl text-blue-500 animate-pulse">
-                            <i class="fas fa-lock"></i>
-                        </div>
-                        <div class="space-y-4">
-                            <h2 class="text-4xl font-black italic tracking-tighter uppercase">Certificación Profesional</h2>
-                            <p class="text-slate-400 text-sm max-w-md mx-auto leading-relaxed font-medium">Para obtener tu diploma con validez digital, debes haber completado todos los módulos y solicitado tu clave de activación personalizada.</p>
-                        </div>
-                        
-                        <div class="flex flex-wrap justify-center gap-4 pt-4">
-                            <button onclick="window.open('https://wa.me/5648515663?text=Hola! Solicito mi clave de activación para Electrónica Master Academy')" class="bg-emerald-600 px-10 py-5 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-emerald-500 transition-all shadow-lg text-sm">
-                                <i class="fab fa-whatsapp text-lg"></i> CONTACTAR SOPORTE
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="exam-ready" class="hidden glass p-12 md:p-20 rounded-[4rem] text-center space-y-10 border border-emerald-500/20">
-                        <div class="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-4xl text-emerald-500">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <div class="space-y-4">
-                            <h2 class="text-4xl font-black italic uppercase tracking-tighter">¡Entrenamiento Superado!</h2>
-                            <p class="text-slate-400 font-medium">Tu perfil ha sido verificado como técnico nivel experto.</p>
-                        </div>
-                        <button id="generate-cert-btn" onclick="requestCertificate()" class="btn-primary px-12 py-6 rounded-2xl font-black text-xl hover:scale-105 transition-all shadow-2xl">
-                            DESCARGAR DIPLOMA <i class="fas fa-download ml-3"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Guest Name Capture -->
-                <div id="guest-name-capture-view" class="hidden glass p-12 rounded-[4rem] text-center space-y-8 max-w-xl mx-auto border border-blue-500/30">
-                    <div>
-                        <h3 class="text-2xl font-black uppercase italic">Identidad de Diploma</h3>
-                        <p class="text-slate-400 text-xs mt-2 font-bold uppercase tracking-widest">¿Cómo quieres que aparezca tu nombre?</p>
-                    </div>
-                    <input type="text" id="guest-fullname" class="w-full bg-slate-900/50 p-6 rounded-2xl border border-white/10 outline-none focus:border-blue-500 text-center text-xl font-black tracking-tight" placeholder="Nombre y Apellido">
-                    <button onclick="submitGuestName()" class="w-full bg-emerald-600 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl">GENERAR REGISTRO OFICIAL</button>
-                </div>
-            </div>
-        </main>
-    </section>
-
-    <!-- CERTIFICATE PRINT -->
-    <section id="cert-section" class="hidden min-h-screen bg-white text-slate-900 p-8 md:p-16 items-center justify-center">
-        <div class="max-w-[1100px] w-full border-[20px] border-slate-900 p-12 md:p-24 bg-white relative shadow-2xl text-center">
-            <!-- Decorative Elements -->
-            <div class="absolute top-0 left-0 w-32 h-32 border-l-8 border-t-8 border-blue-600 -translate-x-4 -translate-y-4"></div>
-            
-            <div class="flex justify-between items-start mb-20">
-                <div class="text-left">
-                    <p class="font-black text-blue-600 tracking-[0.4em] uppercase text-[10px]">ELECTRONICA MASTER ACADEMY</p>
-                    <p class="text-slate-400 font-bold text-[8px] uppercase tracking-widest">International Microelectronics Division</p>
-                </div>
-                <div class="w-20 h-20 bg-slate-900 text-white rounded-2xl flex items-center justify-center italic font-black text-2xl shadow-xl">EM</div>
-            </div>
-
-            <div class="space-y-12">
-                <p class="font-serif italic text-3xl text-slate-400">Certifica que el alumno(a)</p>
-                <h1 id="out-name" class="text-6xl font-black border-b-8 border-slate-900 inline-block pb-4 px-12 uppercase italic tracking-tighter">NOMBRE COMPLETO</h1>
-                <div class="max-w-2xl mx-auto py-8">
-                    <p class="text-2xl font-bold text-slate-700 leading-relaxed">Ha completado con excelencia el programa de formación profesional en <span class="text-blue-600">Microelectrónica, Lectura de Esquemas y Técnicas de Soldadura Avanzada</span>.</p>
-                </div>
-            </div>
-
-            <div class="flex flex-col md:flex-row justify-between items-end mt-24 pt-12 border-t-2 border-slate-100 gap-8">
-                <div class="text-left space-y-2">
-                    <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Registro de Verificación</p>
-                    <div class="bg-slate-50 p-4 rounded-xl space-y-1 border border-slate-100">
-                        <p class="text-[9px] font-mono text-slate-400">ID: <span id="out-id" class="text-slate-900 font-bold"></span></p>
-                        <p class="text-[9px] font-mono text-slate-400">EMISIÓN: <span id="out-date" class="text-slate-900 font-bold"></span></p>
-                    </div>
-                </div>
-                
-                <div class="flex flex-col items-center">
-                    <img id="out-qr" class="w-32 h-32 border-4 border-white shadow-lg p-1 rounded-xl mb-2" alt="QR Validation">
-                    <p class="text-[8px] font-black uppercase text-slate-300 tracking-[0.3em]">Sello Digital Master</p>
-                </div>
-
-                <div class="text-center w-56">
-                    <div class="h-[2px] bg-slate-900 mb-4 w-full"></div>
-                    <p class="font-black text-xs uppercase tracking-tighter italic">Director Académico</p>
-                    <p class="text-[8px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Electrónica Master Inc.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="no-print fixed bottom-10 left-1/2 -translate-x-1/2 flex gap-4">
-            <button onclick="window.print()" class="bg-slate-900 text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all">Imprimir Certificado</button>
-            <button onclick="location.reload()" class="bg-white text-slate-900 px-10 py-5 border-2 border-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-slate-50 transition-all">Cerrar Sesión</button>
-        </div>
-    </section>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            onAuthStateChanged, 
-            createUserWithEmailAndPassword, 
-            signInWithEmailAndPassword, 
-            signOut,
-            signInWithPopup,
-            GoogleAuthProvider,
-            signInAnonymously,
-            signInWithCustomToken
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            doc, 
-            setDoc, 
-            getDoc, 
-            updateDoc, 
-            onSnapshot, 
-            collection 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // CONFIGURACIÓN (Dejar apiKey vacío como pide el sistema)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "", 
-            authDomain: "electronicamaster-4a117.firebaseapp.com",
-            projectId: "electronicamaster-4a117",
-            storageBucket: "electronicamaster-4a117.firebasestorage.app",
-            messagingSenderId: "186996854626",
-            appId: "1:186996854626:web:536e8df845bac255ae663b"
-        };
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'electronicamaster-4a117';
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const googleProvider = new GoogleAuthProvider();
-
-        const COURSE_CONTENT = [
-            { id: 'm1', title: 'Soldadura SMD Nivel 1', video: 'dQw4w9WgXcQ' },
-            { id: 'm2', title: 'Lectura de Esquemas', video: 'P_H9-fB0K_0' },
-            { id: 'm3', title: 'Reballing Avanzado', video: 'dQw4w9WgXcQ' },
-            { id: 'm4', title: 'Diagnóstico de Cortos', video: 'P_H9-fB0K_0' }
-        ];
-
-        window.user = null;
-        window.userData = null;
-
-        // --- AUTH LOGIC ---
-
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                }
-            } catch (e) { console.error("Token fail", e); }
-        };
-
-        initAuth();
-
-        window.loginWithGoogle = async () => {
-            try {
-                const result = await signInWithPopup(auth, googleProvider);
-                await checkAndCreateProfile(result.user, result.user.displayName);
-                showToast("Acceso con Google exitoso", "success");
-            } catch (err) {
-                showToast("Verifica las ventanas emergentes", "error");
-            }
-        };
-
-        window.continueAsGuest = async () => {
-            try {
-                const result = await signInAnonymously(auth);
-                await checkAndCreateProfile(result.user, "Invitado");
-                showToast("Acceso como invitado", "info");
-            } catch (err) {
-                showToast("Error Invitado: " + err.message, "error");
-            }
-        };
-
-        window.handleEmailAuth = async (type) => {
-            const email = document.getElementById('auth-email').value.trim();
-            const pass = document.getElementById('auth-pass').value;
-            const name = document.getElementById('auth-name').value.trim();
-            
-            if (!email || !pass) return showToast("Faltan campos", "error");
-            
-            try {
-                if (type === 'signup') {
-                    if (!name) return showToast("Ingresa tu nombre para el perfil", "error");
-                    const res = await createUserWithEmailAndPassword(auth, email, pass);
-                    await checkAndCreateProfile(res.user, name);
-                    showToast("Registro exitoso", "success");
-                } else {
-                    await signInWithEmailAndPassword(auth, email, pass);
-                    showToast("Bienvenido", "success");
-                }
-            } catch (err) {
-                showToast("Error de acceso", "error");
-            }
-        };
-
-        async function checkAndCreateProfile(user, name) {
-            // RULE 1: Specific path structure
-            const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
-            try {
-                const snap = await getDoc(userRef);
-                if (!snap.exists()) {
-                    await setDoc(userRef, {
-                        displayName: name || "Técnico Master",
-                        email: user.email || "Anónimo",
-                        isPaid: false, 
-                        isGuest: user.isAnonymous,
-                        progress: { modulesCompleted: [] },
-                        enrolledAt: new Date().toISOString()
-                    });
-                }
-            } catch (e) {
-                console.error("Profile error", e);
-            }
-        }
-
-        window.logout = () => signOut(auth).then(() => location.reload());
-
-        // --- OBSERVER ---
-        onAuthStateChanged(auth, async (u) => {
-            window.user = u;
-            if (u) {
-                const userRef = doc(db, 'artifacts', appId, 'users', u.uid, 'profile');
-                onSnapshot(userRef, (snap) => {
-                    if (snap.exists()) {
-                        window.userData = snap.data();
-                        renderApp();
-                        showSection('app');
-                        
-                        // Autoload first video if nothing is playing
-                        const frame = document.getElementById('video-frame');
-                        if (!frame.src || frame.src.includes("about:blank")) {
-                            loadVideo(COURSE_CONTENT[0].id);
-                        }
-                    }
-                }, (err) => showToast("Error de permisos en Firestore", "error"));
-            } else { 
-                showSection('landing'); 
-            }
-        });
-
-        // --- RENDERERS ---
-
-        function renderApp() {
-            if (!window.userData) return;
-            document.getElementById('user-name-display').innerText = window.userData.displayName;
-            
-            const guestBanner = document.getElementById('guest-banner');
-            guestBanner.classList.toggle('hidden', !window.userData.isGuest);
-
-            const list = document.getElementById('module-list');
-            list.innerHTML = COURSE_CONTENT.map((mod, idx) => {
-                const isDone = window.userData.progress?.modulesCompleted?.includes(mod.id);
-                return `
-                    <div class="module-card p-5 rounded-3xl flex items-center justify-between group hover:bg-white/5 transition-all cursor-pointer ${isDone ? 'active' : ''}" onclick="loadVideo('${mod.id}')">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-blue-500 font-black text-xs shadow-inner">
-                                ${idx + 1}
-                            </div>
-                            <div>
-                                <h4 class="font-black text-sm text-slate-200 group-hover:text-blue-400 transition-colors">${mod.title}</h4>
-                                <p class="text-[9px] text-slate-600 font-bold uppercase tracking-widest mt-0.5">${isDone ? 'Completado' : 'Pendiente'}</p>
-                            </div>
-                        </div>
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center">
-                            ${isDone ? '<i class="fas fa-check-circle text-emerald-500 text-lg"></i>' : '<i class="fas fa-play text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"></i>'}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            updateCertState();
-        }
-
-        function updateCertState() {
-            const modulesDone = window.userData.progress?.modulesCompleted?.length || 0;
-            const allDone = modulesDone >= COURSE_CONTENT.length;
-            const isPaid = window.userData.isPaid;
-
-            const statusMsg = document.getElementById('cert-status-msg');
-            const btn = document.getElementById('generate-cert-btn');
-
-            if (!isPaid) {
-                statusMsg.innerHTML = `<span class="text-amber-500 text-[9px] font-black uppercase tracking-widest"><i class="fas fa-lock mr-2"></i>Requiere Activación</span>`;
-            } else if (!allDone) {
-                statusMsg.innerHTML = `<span class="text-blue-400 text-[9px] font-black uppercase tracking-widest"><i class="fas fa-tasks mr-2"></i>Faltan ${COURSE_CONTENT.length - modulesDone} módulos</span>`;
-            } else {
-                statusMsg.innerHTML = `<span class="text-emerald-400 text-[9px] font-black uppercase tracking-widest"><i class="fas fa-award mr-2"></i>Listo para emitir</span>`;
-            }
-        }
-
-        window.loadVideo = (id) => {
-            const mod = COURSE_CONTENT.find(m => m.id === id);
-            document.getElementById('video-frame').src = `https://www.youtube.com/embed/${mod.video}?autoplay=1&rel=0`;
-            document.getElementById('video-title').innerText = mod.title;
-            document.getElementById('mark-btn').onclick = () => window.markComplete(id);
-            
-            // Visual active state
-            document.querySelectorAll('.module-card').forEach(c => c.classList.remove('active'));
-            showSubView('content');
-        };
-
-        window.markComplete = async (id) => {
-            if (!window.user) return;
-            const current = window.userData.progress?.modulesCompleted || [];
-            if(!current.includes(id)) {
-                const userRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile');
-                await updateDoc(userRef, {
-                    "progress.modulesCompleted": [...current, id]
-                });
-                showToast("Progreso actualizado", "success");
-            } else {
-                showToast("Ya completado", "info");
-            }
-        };
-
-        window.requestCertificate = async () => {
-            if (window.userData.isGuest || window.userData.displayName === "Invitado") {
-                showSubView('guest-name-capture');
-            } else {
-                issueCertificate(window.userData.displayName);
-            }
-        };
-
-        window.submitGuestName = async () => {
-            const name = document.getElementById('guest-fullname').value.trim();
-            if (!name) return showToast("Ingresa tu nombre", "error");
-            
-            await updateDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile'), {
-                displayName: name
+                container.appendChild(node);
             });
-            issueCertificate(name);
-        };
 
-        async function issueCertificate(studentName) {
-            try {
-                showToast("Validando con servidores...", "info");
-                const userId = window.user.uid;
-                
-                // RULE 1: Public certificate path
-                const certRef = doc(db, 'artifacts', appId, 'public', 'data', 'certificates', userId);
-                const existing = await getDoc(certRef);
-                
-                let certData;
-                if (existing.exists()) {
-                    certData = existing.data();
-                } else {
-                    const timestamp = Date.now().toString(36).toUpperCase();
-                    const shortUid = userId.substring(0, 5).toUpperCase();
-                    const certId = `EM-${shortUid}-${timestamp}`;
-                    
-                    certData = {
-                        certId: certId,
-                        studentName: studentName,
-                        course: "Especialista en Microelectrónica",
-                        issueDate: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
-                        uid: userId,
-                        verified: true
-                    };
-                    await setDoc(certRef, certData);
-                }
-                renderCertificateUI(certData);
-            } catch (e) {
-                showToast("Error de servidor", "error");
+            // Actualizar candado final
+            if(gameState.completed.length >= ACADEMIC_PATH.length - 1) {
+                document.getElementById('final-exam-locked').classList.remove('opacity-50');
+                document.getElementById('final-exam-locked').querySelector('i').className = "fas fa-unlock text-4xl text-green-500 mb-4";
             }
         }
 
-        function renderCertificateUI(data) {
-            document.getElementById('out-name').innerText = data.studentName;
-            document.getElementById('out-id').innerText = data.certId;
-            document.getElementById('out-date').innerText = data.issueDate;
+        function downloadCertificate() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
             
-            // Use current URL for QR verification
-            const verifyUrl = `${window.location.href.split('?')[0]}?verify=${data.certId}`;
-            document.getElementById('out-qr').src = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(verifyUrl)}&choe=UTF-8`;
-            showSection('cert');
+            // Estilo Académico SEP/STPS Style
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, 297, 210, 'F');
+            
+            // Bordes Elegantes
+            doc.setDrawColor(28, 176, 246);
+            doc.setLineWidth(1);
+            doc.rect(5, 5, 287, 200);
+            doc.setDrawColor(88, 204, 2);
+            doc.setLineWidth(0.5);
+            doc.rect(7, 7, 283, 196);
+
+            doc.setTextColor(60, 60, 60);
+            doc.setFontSize(22);
+            doc.text("ELECTROMASTER ACADEMY MÉXICO", 148, 40, null, null, "center");
+            
+            doc.setFontSize(14);
+            doc.text("PROGRAMA DE FORMACIÓN TÉCNICA CONTINUA", 148, 50, null, null, "center");
+            
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.text("EN ALIANZA CON CRITERIOS DE CAPACITACIÓN STPS", 148, 55, null, null, "center");
+
+            doc.setFontSize(18);
+            doc.setTextColor(40, 40, 40);
+            doc.text("OTORGA EL PRESENTE RECONOCIMIENTO A:", 148, 85, null, null, "center");
+
+            doc.setFontSize(35);
+            doc.setTextColor(28, 176, 246);
+            doc.text("ESTUDIANTE DESTACADO", 148, 110, null, null, "center");
+
+            doc.setFontSize(16);
+            doc.setTextColor(60, 60, 60);
+            doc.text("Por haber acreditado con éxito las competencias de:", 148, 130, null, null, "center");
+
+            doc.setFontSize(22);
+            doc.setTextColor(88, 204, 2);
+            doc.text("TÉCNICO SUPERIOR EN MANTENIMIENTO DE SISTEMAS", 148, 145, null, null, "center");
+
+            doc.setFontSize(9);
+            doc.setTextColor(180, 180, 180);
+            const folio = `FOLIO-MX-${Date.now()}`;
+            doc.text(`Validación Electrónica: ${folio} | México 2024`, 148, 185, null, null, "center");
+            doc.text("Este documento avala 40 horas de formación teórica-práctica.", 148, 190, null, null, "center");
+
+            doc.save("Certificado_TSU_ElectroMaster.pdf");
         }
 
-        window.verifyCertificate = async () => {
-            const id = document.getElementById('verify-input').value.trim();
-            if (!id) return;
-            
-            const resultBox = document.getElementById('verify-result');
-            resultBox.innerHTML = `<div class="animate-pulse flex items-center gap-2"><i class="fas fa-spinner fa-spin"></i> Validando...</div>`;
-            
-            try {
-                // Rule: Fetching from public data
-                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'certificates');
-                // Since we don't have search by ID easily without Rule 2 violation, we look for doc by UID or search manual
-                const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'certificates', id));
-                
-                // Note: For simplicity, the user usually searches by their UID which we use as doc ID for certificates
-                if (snap.exists()) {
-                    const data = snap.data();
-                    resultBox.innerHTML = `
-                        <div class="glass p-4 rounded-2xl border-emerald-500/30 text-left animate-in fade-in zoom-in w-full">
-                            <p class="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1"><i class="fas fa-check-circle mr-1"></i> Registro Válido</p>
-                            <p class="text-lg font-black italic">${data.studentName}</p>
-                            <p class="text-[10px] text-slate-400 font-bold uppercase">${data.course}</p>
-                            <div class="mt-2 text-[9px] font-mono bg-black/30 p-2 rounded-lg text-blue-400">${data.certId}</div>
-                        </div>`;
-                } else {
-                    resultBox.innerHTML = `<p class="text-red-500 text-xs font-bold uppercase">Código no registrado o inválido</p>`;
-                }
-            } catch (e) {
-                showToast("Error en consulta", "error");
-            }
-        };
-
-        // --- GLOBAL HELPERS ---
-        window.showSection = (id) => {
-            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(id + '-section').classList.remove('hidden');
-        };
-
-        window.showSubView = (id) => {
-            ['content', 'exam', 'guest-name-capture'].forEach(v => {
-                const el = document.getElementById(v + '-view');
-                if(el) el.classList.add('hidden');
-            });
-            document.getElementById(id + '-view').classList.remove('hidden');
-
-            if (id === 'exam') {
-                const isPaid = window.userData?.isPaid || false;
-                document.getElementById('paywall-section').classList.toggle('hidden', isPaid);
-                document.getElementById('exam-ready').classList.toggle('hidden', !isPaid);
-            }
-        };
-
-        window.showToast = (msg, type) => {
-            const el = document.getElementById('toast');
-            el.innerHTML = `
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center ${type === 'error' ? 'bg-red-600' : 'bg-blue-600'}">
-                    <i class="fas ${type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle'} text-white text-xs"></i>
-                </div>
-                <span>${msg}</span>
-            `;
-            el.className = `fixed top-5 right-5 z-[100] p-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 transition-all duration-500 glass ${type === 'error' ? 'text-red-400' : 'text-blue-400'}`;
-            el.classList.remove('translate-x-[120%]');
-            setTimeout(() => el.classList.add('translate-x-[120%]'), 4000);
-        };
-        
-        // Handle URL parameters for direct verification
-        const urlParams = new URLSearchParams(window.location.search);
-        if(urlParams.has('verify')) {
-            showSection('verify-public');
-            document.getElementById('verify-input').value = urlParams.get('verify');
-            setTimeout(() => window.verifyCertificate(), 1000);
-        }
-
+        window.onload = renderMap;
     </script>
 </body>
 </html>
