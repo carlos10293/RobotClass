@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElectroMaster - TSU en Electrónica</title>
+    <title>ElectroMaster - TSU Digital</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -23,7 +23,6 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Estilos UI Estilo Duolingo */
         .duo-card {
             border: 2px solid #e5e5e5;
             border-bottom: 6px solid #e5e5e5;
@@ -32,12 +31,6 @@
         .duo-card:active {
             border-bottom-width: 2px;
             transform: translateY(4px);
-        }
-
-        .btn-primary {
-            background-color: #1cb0f6;
-            border-bottom: 5px solid #1899d6;
-            color: white;
         }
 
         .btn-success {
@@ -50,406 +43,324 @@
             max-width: 600px;
             margin: 0 auto;
             padding: 100px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
 
         .level-node {
-            width: 90px;
-            height: 80px;
+            width: 95px;
+            height: 85px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.8rem;
+            font-size: 2rem;
             color: white;
             cursor: pointer;
             position: relative;
-            margin-bottom: 50px;
-            transition: transform 0.2s;
+            margin: 20px auto;
+            transition: all 0.2s;
+            z-index: 10;
         }
 
-        .level-node.completed { 
-            background-color: #ffc800; 
-            border-bottom: 8px solid #e5a500; 
-        }
-        .level-node.current { 
-            background-color: #58cc02; 
-            border-bottom: 8px solid #46a302; 
-            animation: bounce 2.5s infinite; 
-        }
-        .level-node.locked { 
-            background-color: #e5e5e5; 
-            border-bottom: 8px solid #afafaf; 
-            cursor: not-allowed; 
-        }
+        .level-node.completed { background-color: #ffc800; border-bottom: 8px solid #e5a500; }
+        .level-node.current { background-color: #58cc02; border-bottom: 8px solid #46a302; animation: bounce 2s infinite; }
+        .level-node.locked { background-color: #e5e5e5; border-bottom: 8px solid #afafaf; cursor: not-allowed; }
 
         @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-            40% {transform: translateY(-10px);}
-            60% {transform: translateY(-5px);}
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.05); }
         }
 
-        .progress-bar-fill {
-            transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
+        .progress-fill { transition: width 0.4s ease-out; }
 
-        /* Efecto de "puntos" entre nodos */
-        .node-connector {
+        /* Línea conectora entre nodos */
+        .path-line {
             position: absolute;
-            width: 4px;
+            width: 8px;
             background: #e5e5e5;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 1;
         }
     </style>
 </head>
 <body class="bg-gray-50">
 
-    <!-- Header Principal -->
+    <!-- Header Estilo Premium -->
     <nav class="fixed top-0 left-0 right-0 bg-white border-b-2 border-gray-200 z-50 px-4 py-3">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="w-10 h-10 bg-[#58cc02] rounded-xl flex items-center justify-center text-white text-xl shadow-sm">
-                    <i class="fas fa-microchip"></i>
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-[#1cb0f6] rounded-xl text-white">
+                    <i class="fas fa-graduation-cap"></i>
                 </div>
-                <span class="text-xl font-black text-[#58cc02] tracking-tighter">ElectroMaster <span class="text-gray-300">TSU</span></span>
+                <span class="text-xl font-black text-[#4b4b4b]">ElectroMaster <span class="text-[#1cb0f6]">PRO</span></span>
             </div>
-            <div class="flex items-center gap-4 font-bold text-gray-400">
-                <div class="flex items-center gap-1 text-orange-500"><i class="fas fa-fire"></i> <span>7</span></div>
+            <div class="flex items-center gap-6 font-black text-gray-400">
+                <div class="flex items-center gap-1 text-orange-500"><i class="fas fa-fire"></i> <span>12</span></div>
                 <div class="flex items-center gap-1 text-red-500"><i class="fas fa-heart"></i> <span>5</span></div>
-                <div class="flex items-center gap-1 text-blue-400"><i class="fas fa-gem"></i> <span id="gems-display">100</span></div>
+                <div class="flex items-center gap-1 text-blue-400"><i class="fas fa-certificate"></i> <span class="text-xs">TSU</span></div>
             </div>
         </div>
     </nav>
 
-    <!-- Mapa de la Ruta Técnica -->
-    <div class="path-container" id="main-map">
-        <!-- Sección de Inicio -->
-        <div class="w-full bg-[#1cb0f6] p-6 rounded-3xl text-white mb-10 duo-card border-none shadow-lg">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h3 class="font-black opacity-80 uppercase text-xs tracking-widest">Módulo 1</h3>
-                    <h2 class="text-2xl font-black">Fundamentos de TSU</h2>
-                </div>
-                <i class="fas fa-book-open text-3xl opacity-50"></i>
-            </div>
-        </div>
-
-        <div id="nodes-layout" class="flex flex-col items-center w-full relative">
-            <!-- Nodos inyectados por JS -->
-        </div>
-        
-        <!-- Botón de Certificación Final -->
-        <div id="final-exam-locked" class="mt-10 p-8 border-4 border-dashed border-gray-200 rounded-3xl text-center w-full opacity-50">
-            <i class="fas fa-lock text-4xl text-gray-300 mb-4"></i>
-            <p class="font-black text-gray-400 uppercase">Examen de Certificación STPS/SEP</p>
-            <p class="text-sm text-gray-300">Completa todas las lecciones anteriores</p>
-        </div>
-    </div>
-
-    <!-- Pantalla de Aprendizaje (Quiz) -->
-    <div id="quiz-screen" class="hidden fixed inset-0 bg-white z-[100] flex flex-col">
-        <div class="p-6 flex items-center gap-4 max-w-4xl mx-auto w-full">
-            <button onclick="quizEngine.exit()" class="text-gray-300 text-3xl font-bold hover:text-gray-500">×</button>
-            <div class="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden border-2 border-gray-100">
-                <div id="progress-bar" class="progress-bar-fill h-full bg-[#58cc02]" style="width: 0%"></div>
-            </div>
-            <div class="text-red-500 font-bold flex items-center gap-1">
-                <i class="fas fa-heart"></i> <span>5</span>
-            </div>
-        </div>
-        
-        <div class="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-2xl mx-auto w-full">
-            <div class="mb-6">
-                <div id="speaker-icon" class="w-20 h-20 bg-blue-100 text-blue-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 cursor-pointer hover:bg-blue-200">
-                    <i class="fas fa-volume-up"></i>
-                </div>
-                <h2 id="q-text" class="text-2xl font-black text-gray-700 leading-tight"></h2>
+    <!-- Contenido Principal -->
+    <div class="path-container">
+        <!-- Fase 1: Introducción Técnica -->
+        <div class="mb-12">
+            <div class="bg-[#58cc02] rounded-3xl p-6 text-white duo-card border-none mb-8">
+                <p class="text-xs font-black uppercase tracking-widest opacity-80">Fase 1</p>
+                <h2 class="text-2xl font-black">Principios de Mantenimiento</h2>
+                <p class="text-sm font-bold opacity-90 mt-1">Fundamentos eléctricos y seguridad industrial.</p>
             </div>
             
-            <div id="options-grid" class="grid w-full gap-3">
-                <!-- Opciones -->
+            <div id="nodes-fase-1" class="relative flex flex-col items-center gap-16">
+                <!-- Nodos inyectados aquí -->
             </div>
         </div>
 
-        <div id="footer-check" class="p-8 border-t-2 border-gray-100 bg-white">
-            <div class="max-w-4xl mx-auto flex justify-between items-center">
-                <div id="feedback-msg" class="hidden flex items-center gap-3">
-                    <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl"></div>
-                    <div>
-                        <h4 id="feedback-status" class="font-black text-lg"></h4>
-                        <p id="feedback-exp" class="text-sm font-bold"></p>
-                    </div>
+        <!-- Fase 2: Especialización (Bloqueada al inicio) -->
+        <div class="mt-20">
+            <div class="bg-gray-200 rounded-3xl p-6 text-gray-400 duo-card border-none flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-black uppercase tracking-widest opacity-80">Fase 2</p>
+                    <h2 class="text-2xl font-black">Electrónica de Potencia</h2>
                 </div>
-                <button id="main-action-btn" class="w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-[#e5e5e5] cursor-not-allowed uppercase tracking-wider transition-all">Comprobar</button>
+                <i class="fas fa-lock text-2xl"></i>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Certificado (Checkout $100 MXN) -->
-    <div id="cert-modal" class="hidden fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-8 text-center">
-        <div class="w-32 h-32 bg-yellow-100 text-yellow-500 rounded-full flex items-center justify-center text-6xl mb-6 shadow-inner">
-            <i class="fas fa-graduation-cap"></i>
-        </div>
-        <h2 class="text-3xl font-black text-gray-800 mb-4">¡Felicidades, Técnico!</h2>
-        <p class="text-lg text-gray-500 font-bold max-w-sm mb-8">Has completado el programa de <span class="text-blue-500">Mantenimiento de Sistemas</span>. Solo falta un paso para tu certificado oficial.</p>
-        
-        <div class="bg-gray-50 p-6 rounded-[2rem] border-2 border-gray-100 w-full max-w-sm mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <span class="font-black text-gray-400 uppercase text-xs">Cuota de Recuperación</span>
-                <span class="bg-green-100 text-green-600 px-3 py-1 rounded-lg text-xs font-black">OFERTA</span>
+    <!-- Interfaz de Quiz (Pantalla Completa) -->
+    <div id="quiz-ui" class="hidden fixed inset-0 bg-white z-[100] flex flex-col">
+        <div class="p-6 max-w-4xl mx-auto w-full flex items-center gap-4">
+            <button onclick="quiz.exit()" class="text-gray-300 text-3xl hover:text-gray-500">×</button>
+            <div class="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                <div id="quiz-bar" class="progress-fill h-full bg-[#58cc02]" style="width: 0%"></div>
             </div>
-            <div class="text-4xl font-black text-gray-800">$100.00 <span class="text-lg">MXN</span></div>
-            <p class="text-[10px] text-gray-400 mt-2">Incluye: Certificado Digital PDF, Registro en Base de Datos TSU y Validación QR.</p>
         </div>
 
-        <div id="paypal-container" class="w-full max-w-sm"></div>
-        
-        <button onclick="document.getElementById('cert-modal').classList.add('hidden')" class="mt-8 font-black text-gray-300 uppercase tracking-widest hover:text-gray-500">Cerrar y seguir aprendiendo</button>
+        <div class="flex-1 overflow-y-auto px-6 py-10 flex flex-col items-center justify-center text-center max-w-2xl mx-auto w-full">
+            <h2 id="q-text" class="text-2xl font-black text-gray-700 mb-8 leading-tight"></h2>
+            <div id="options-container" class="grid w-full gap-4"></div>
+        </div>
+
+        <div id="quiz-footer" class="p-8 border-t-2 border-gray-100 bg-white">
+            <div id="feedback-area" class="hidden mb-4 flex items-center gap-4 p-4 rounded-2xl">
+                <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl"></div>
+                <div class="text-left">
+                    <h4 id="feedback-title" class="font-black text-lg"></h4>
+                    <p id="feedback-body" class="text-sm font-bold"></p>
+                </div>
+            </div>
+            <button id="action-btn" class="w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-gray-200 cursor-not-allowed uppercase tracking-widest">Comprobar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Pago / Certificación -->
+    <div id="payment-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl text-center">
+            <div class="w-24 h-24 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
+                <i class="fas fa-award"></i>
+            </div>
+            <h2 class="text-3xl font-black text-gray-800 mb-2">¡Nivel TSU Alcanzado!</h2>
+            <p class="text-gray-500 font-bold mb-8">Has demostrado los conocimientos técnicos necesarios. Obtén tu certificado con validez STPS por solo:</p>
+            
+            <div class="bg-blue-50 border-2 border-blue-100 p-6 rounded-3xl mb-8 flex justify-between items-center">
+                <div class="text-left">
+                    <span class="text-xs font-black text-blue-400 uppercase">Cuota Única</span>
+                    <div class="text-3xl font-black text-blue-700">$100.00 MXN</div>
+                </div>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" class="h-8" alt="PayPal">
+            </div>
+
+            <div id="paypal-btn-container"></div>
+            
+            <button onclick="document.getElementById('payment-modal').classList.add('hidden')" class="mt-6 text-gray-300 font-black uppercase text-xs tracking-widest hover:text-gray-500">Regresar al Mapa</button>
+        </div>
     </div>
 
     <script>
-        // CURRÍCULO EXTENDIDO TSU
-        const ACADEMIC_PATH = [
-            { id: 1, title: 'Resistencias', icon: 'bolt', questions: [
-                { q: "¿Cuál es el código de colores para 1kΩ?", a: ["Marrón, Negro, Rojo", "Rojo, Rojo, Naranja", "Marrón, Negro, Naranja"], c: 0, exp: "Marrón (1), Negro (0), Rojo (00) = 1000Ω" },
-                { q: "¿Qué pasa si pongo dos resistencias iguales en paralelo?", a: ["Se duplica la resistencia", "Se reduce a la mitad", "No pasa nada"], c: 1, exp: "Req = R / n cuando son iguales." }
+        const CURRICULUM = [
+            { id: 1, title: 'Conceptos Eléctricos', icon: 'bolt', questions: [
+                { q: "¿Cuál es la ley fundamental que relaciona V, I y R?", a: ["Ley de Newton", "Ley de Ohm", "Ley de Hooke"], c: 1, exp: "V = I * R es la base de la electrónica." },
+                { q: "¿Qué mide un multímetro en modo 'Continuidad'?", a: ["Resistencia infinita", "Si hay conexión eléctrica", "Capacitancia"], c: 1, exp: "El 'pitido' indica un camino cerrado para la corriente." }
             ]},
-            { id: 2, title: 'Multímetros', icon: 'vial', questions: [
-                { q: "¿Cómo se mide la corriente en un circuito?", a: ["En paralelo", "En serie", "No importa"], c: 1, exp: "El amperímetro debe 'ser parte' del camino de la corriente." }
+            { id: 2, title: 'Seguridad TSU', icon: 'hard-hat', questions: [
+                { q: "¿Qué significa el equipo de protección EPP?", a: ["Equipo Para Personas", "Equipo de Protección Personal", "Estándar de Poder Puro"], c: 1, exp: "Indispensable para mantenimiento seguro." },
+                { q: "¿Cuál es el primer paso antes de abrir un equipo?", a: ["Limpiarlo", "Desenergizarlo", "Tomar fotos"], c: 1, exp: "La seguridad eléctrica empieza con el corte de energía." }
             ]},
-            { id: 3, title: 'Diodos y Rectificación', icon: 'wave-square', questions: [
-                { q: "¿Cuál es el voltaje de umbral típico de un diodo de Silicio?", a: ["0.3V", "0.7V", "5V"], c: 1, exp: "El silicio requiere ~0.7V para conducir." }
+            { id: 3, title: 'Componentes', icon: 'microchip', questions: [
+                { q: "¿Cuál es la función de un capacitor?", a: ["Almacenar energía en campo eléctrico", "Amplificar señal", "Convertir AC a DC"], c: 0, exp: "Almacenan carga temporalmente." }
             ]},
-            { id: 4, title: 'Mantenimiento PC', icon: 'laptop-medical', questions: [
-                { q: "¿Qué componente evita que el procesador se queme?", a: ["Pasta térmica y disipador", "Fuente de poder", "Memoria RAM"], c: 0, exp: "Transfieren el calor fuera del silicio." }
-            ]},
-            { id: 5, title: 'EXAMEN FINAL TSU', icon: 'award', isExam: true, questions: [
-                { q: "¿Cuál es el estándar de seguridad eléctrica en México?", a: ["NOM-001-SEDE", "ISO-9001", "IEEE-802"], c: 0, exp: "La NOM-001 regula las instalaciones eléctricas en México." }
+            { id: 4, title: 'EXAMEN CERTIFICACIÓN', icon: 'graduation-cap', isExam: true, questions: [
+                { q: "¿Qué norma mexicana regula las instalaciones eléctricas?", a: ["NOM-001-SEDE", "NOM-019-STPS", "ISO-9001"], c: 0, exp: "La NOM-001 es el estándar legal en México." }
             ]}
         ];
 
-        let gameState = {
+        let state = {
             completed: JSON.parse(localStorage.getItem('em_completed')) || [],
-            currentLvl: null,
+            activeLvl: null,
             qIdx: 0,
-            selected: null,
-            gems: 100
+            selected: null
         };
 
-        const quizEngine = {
-            start(id) {
-                const lvl = ACADEMIC_PATH.find(l => l.id === id);
-                if (id > 1 && !gameState.completed.includes(id - 1)) return;
+        const quiz = {
+            start(lvlId) {
+                const lvl = CURRICULUM.find(l => l.id === lvlId);
+                if (lvlId > 1 && !state.completed.includes(lvlId - 1)) return;
                 
-                gameState.currentLvl = lvl;
-                gameState.qIdx = 0;
-                gameState.selected = null;
-                document.getElementById('quiz-screen').classList.remove('hidden');
-                this.renderQuestion();
+                state.activeLvl = lvl;
+                state.qIdx = 0;
+                document.getElementById('quiz-ui').classList.remove('hidden');
+                this.render();
             },
-            renderQuestion() {
-                const q = gameState.currentLvl.questions[gameState.qIdx];
+            render() {
+                const q = state.activeLvl.questions[state.qIdx];
                 document.getElementById('q-text').innerText = q.q;
-                document.getElementById('progress-bar').style.width = `${(gameState.qIdx / gameState.currentLvl.questions.length) * 100}%`;
+                document.getElementById('quiz-bar').style.width = `${(state.qIdx / state.activeLvl.questions.length) * 100}%`;
                 
-                const grid = document.getElementById('options-grid');
-                grid.innerHTML = '';
-                
+                const container = document.getElementById('options-container');
+                container.innerHTML = '';
                 q.a.forEach((opt, i) => {
                     const btn = document.createElement('button');
-                    btn.className = "duo-card p-4 rounded-2xl font-bold text-lg text-left flex items-center gap-4 hover:bg-gray-50";
+                    btn.className = "duo-card p-5 rounded-2xl font-bold text-lg text-left flex items-center gap-4 hover:bg-blue-50";
                     btn.innerHTML = `<span class="w-8 h-8 rounded-lg border-2 border-gray-200 flex items-center justify-center text-gray-300 text-sm">${i+1}</span> ${opt}`;
-                    btn.onclick = () => this.selectOption(i, btn);
-                    grid.appendChild(btn);
+                    btn.onclick = () => this.select(i, btn);
+                    container.appendChild(btn);
                 });
-
                 this.resetFooter();
             },
-            selectOption(i, el) {
-                gameState.selected = i;
-                Array.from(document.getElementById('options-grid').children).forEach(c => {
+            select(i, el) {
+                state.selected = i;
+                Array.from(document.getElementById('options-container').children).forEach(c => {
                     c.classList.remove('border-blue-400', 'bg-blue-50');
-                    c.querySelector('span').classList.replace('border-blue-400', 'border-gray-200');
-                    c.querySelector('span').classList.replace('text-blue-500', 'text-gray-300');
+                    c.querySelector('span').classList.remove('border-blue-400', 'text-blue-500');
                 });
                 el.classList.add('border-blue-400', 'bg-blue-50');
-                el.querySelector('span').classList.replace('border-gray-200', 'border-blue-400');
-                el.querySelector('span').classList.replace('text-gray-300', 'text-blue-500');
-
-                const btn = document.getElementById('main-action-btn');
-                btn.classList.replace('bg-[#e5e5e5]', 'btn-success');
+                el.querySelector('span').classList.add('border-blue-400', 'text-blue-500');
+                
+                const btn = document.getElementById('action-btn');
+                btn.classList.replace('bg-gray-200', 'btn-success');
                 btn.classList.remove('cursor-not-allowed');
-                btn.onclick = () => this.checkAnswer();
+                btn.onclick = () => this.check();
             },
-            checkAnswer() {
-                const q = gameState.currentLvl.questions[gameState.qIdx];
-                const isCorrect = gameState.selected === q.c;
-                
-                const footer = document.getElementById('footer-check');
-                const msg = document.getElementById('feedback-msg');
-                const icon = document.getElementById('feedback-icon');
-                const btn = document.getElementById('main-action-btn');
+            check() {
+                const q = state.activeLvl.questions[state.qIdx];
+                const isCorrect = state.selected === q.c;
+                const feedback = document.getElementById('feedback-area');
+                const btn = document.getElementById('action-btn');
 
-                msg.classList.remove('hidden');
-                document.getElementById('feedback-status').innerText = isCorrect ? "¡Excelente!" : "Casi lo logras";
-                document.getElementById('feedback-exp').innerText = q.exp;
-                
-                if(isCorrect) {
-                    footer.classList.add('bg-green-100');
-                    icon.className = "w-12 h-12 rounded-full flex items-center justify-center text-white text-xl bg-green-500";
-                    icon.innerHTML = '<i class="fas fa-check"></i>';
+                feedback.classList.remove('hidden');
+                if (isCorrect) {
+                    feedback.className = "mb-4 flex items-center gap-4 p-4 rounded-2xl bg-green-100 text-green-700";
+                    document.getElementById('feedback-icon').className = "w-12 h-12 rounded-full flex items-center justify-center text-white text-xl bg-green-500";
+                    document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-check"></i>';
+                    document.getElementById('feedback-title').innerText = "¡Buen trabajo!";
                     btn.innerText = "Continuar";
                 } else {
-                    footer.classList.add('bg-red-100');
-                    icon.className = "w-12 h-12 rounded-full flex items-center justify-center text-white text-xl bg-red-500";
-                    icon.innerHTML = '<i class="fas fa-times"></i>';
-                    btn.className = "w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-red-500 uppercase";
+                    feedback.className = "mb-4 flex items-center gap-4 p-4 rounded-2xl bg-red-100 text-red-700";
+                    document.getElementById('feedback-icon').className = "w-12 h-12 rounded-full flex items-center justify-center text-white text-xl bg-red-500";
+                    document.getElementById('feedback-icon').innerHTML = '<i class="fas fa-times"></i>';
+                    document.getElementById('feedback-title').innerText = "Solución:";
+                    btn.className = "w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-red-500 uppercase tracking-widest";
                     btn.innerText = "Entendido";
                 }
+                document.getElementById('feedback-body').innerText = q.exp;
 
                 btn.onclick = () => {
-                    if(isCorrect) {
-                        gameState.qIdx++;
-                        if(gameState.qIdx >= gameState.currentLvl.questions.length) {
-                            this.finishLevel();
-                        } else {
-                            this.renderQuestion();
-                        }
+                    if (isCorrect) {
+                        state.qIdx++;
+                        if (state.qIdx >= state.activeLvl.questions.length) this.finish();
+                        else this.render();
                     } else {
-                        this.renderQuestion();
+                        this.render();
                     }
                 };
             },
             resetFooter() {
-                const footer = document.getElementById('footer-check');
-                footer.className = "p-8 border-t-2 border-gray-100 bg-white";
-                document.getElementById('feedback-msg').classList.add('hidden');
-                const btn = document.getElementById('main-action-btn');
-                btn.className = "w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-[#e5e5e5] cursor-not-allowed uppercase tracking-wider transition-all";
+                document.getElementById('feedback-area').classList.add('hidden');
+                const btn = document.getElementById('action-btn');
+                btn.className = "w-full md:w-auto px-16 py-4 rounded-2xl font-black text-white bg-gray-200 cursor-not-allowed uppercase tracking-widest";
                 btn.innerText = "Comprobar";
             },
-            finishLevel() {
-                if(!gameState.completed.includes(gameState.currentLvl.id)) {
-                    gameState.completed.push(gameState.currentLvl.id);
-                    localStorage.setItem('em_completed', JSON.stringify(gameState.completed));
+            finish() {
+                if (!state.completed.includes(state.activeLvl.id)) {
+                    state.completed.push(state.activeLvl.id);
+                    localStorage.setItem('em_completed', JSON.stringify(state.completed));
                 }
                 confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                
-                if (gameState.currentLvl.isExam) {
-                    document.getElementById('cert-modal').classList.remove('hidden');
-                    this.initPayPal();
+                if (state.activeLvl.isExam) {
+                    document.getElementById('payment-modal').classList.remove('hidden');
+                    this.initPaypal();
                 }
                 this.exit();
                 renderMap();
             },
-            exit() { document.getElementById('quiz-screen').classList.add('hidden'); },
-            initPayPal() {
-                document.getElementById('paypal-container').innerHTML = '';
+            exit() { document.getElementById('quiz-ui').classList.add('hidden'); },
+            initPaypal() {
+                document.getElementById('paypal-btn-container').innerHTML = '';
                 paypal.Buttons({
-                    style: { layout: 'vertical', color: 'blue', shape: 'pill' },
-                    createOrder: (data, actions) => {
-                        return actions.order.create({
-                            purchase_units: [{
-                                amount: { currency_code: 'USD', value: '5.20' }, // Aprox $100 MXN
-                                description: "Certificado TSU ElectroMaster"
-                            }]
-                        });
-                    },
-                    onApprove: (data, actions) => {
-                        return actions.order.capture().then(() => {
-                            downloadCertificate();
-                        });
-                    }
-                }).render('#paypal-container');
+                    style: { layout: 'horizontal', color: 'blue', shape: 'pill' },
+                    createOrder: (data, actions) => actions.order.create({
+                        purchase_units: [{ amount: { currency_code: 'USD', value: '5.20' }, description: "Certificado TSU ElectroMaster" }]
+                    }),
+                    onApprove: (data, actions) => actions.order.capture().then(() => downloadCert())
+                }).render('#paypal-btn-container');
             }
         };
 
         function renderMap() {
-            const container = document.getElementById('nodes-layout');
+            const container = document.getElementById('nodes-fase-1');
             container.innerHTML = '';
-            
-            ACADEMIC_PATH.forEach((l, i) => {
-                const isDone = gameState.completed.includes(l.id);
-                const isNext = !isDone && (i === 0 || gameState.completed.includes(ACADEMIC_PATH[i-1].id));
-                const isLocked = !isDone && !isNext;
+            CURRICULUM.forEach((l, i) => {
+                const isDone = state.completed.includes(l.id);
+                const isNext = !isDone && (i === 0 || state.completed.includes(CURRICULUM[i-1].id));
                 
                 const node = document.createElement('div');
                 node.className = `level-node ${isDone ? 'completed' : (isNext ? 'current' : 'locked')}`;
-                
-                // Efecto serpiente
+                // Zig-zag
                 const offset = Math.sin(i * 1.5) * 80;
                 node.style.transform = `translateX(${offset}px)`;
-                
                 node.innerHTML = `<i class="fas fa-${l.icon}"></i>`;
-                node.onclick = () => quizEngine.start(l.id);
+                node.onclick = () => quiz.start(l.id);
                 
-                const title = document.createElement('div');
-                title.className = "absolute -bottom-8 font-black text-[10px] text-gray-400 uppercase whitespace-nowrap";
-                title.innerText = l.title;
-                node.appendChild(title);
+                const label = document.createElement('div');
+                label.className = "absolute -bottom-8 font-black text-[10px] text-gray-400 uppercase tracking-tighter whitespace-nowrap";
+                label.innerText = l.title;
+                node.appendChild(label);
                 
                 container.appendChild(node);
             });
-
-            // Actualizar candado final
-            if(gameState.completed.length >= ACADEMIC_PATH.length - 1) {
-                document.getElementById('final-exam-locked').classList.remove('opacity-50');
-                document.getElementById('final-exam-locked').querySelector('i').className = "fas fa-unlock text-4xl text-green-500 mb-4";
-            }
         }
 
-        function downloadCertificate() {
+        function downloadCert() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'mm', 'a4');
-            
-            // Estilo Académico SEP/STPS Style
             doc.setFillColor(255, 255, 255);
             doc.rect(0, 0, 297, 210, 'F');
-            
-            // Bordes Elegantes
             doc.setDrawColor(28, 176, 246);
-            doc.setLineWidth(1);
-            doc.rect(5, 5, 287, 200);
-            doc.setDrawColor(88, 204, 2);
-            doc.setLineWidth(0.5);
-            doc.rect(7, 7, 283, 196);
-
-            doc.setTextColor(60, 60, 60);
-            doc.setFontSize(22);
-            doc.text("ELECTROMASTER ACADEMY MÉXICO", 148, 40, null, null, "center");
+            doc.setLineWidth(1.5);
+            doc.rect(10, 10, 277, 190);
             
+            doc.setTextColor(40, 40, 40);
+            doc.setFontSize(26);
+            doc.text("ELECTROMASTER DIGITAL ACADEMY", 148, 50, null, null, "center");
             doc.setFontSize(14);
-            doc.text("PROGRAMA DE FORMACIÓN TÉCNICA CONTINUA", 148, 50, null, null, "center");
+            doc.text("PROGRAMA DE CAPACITACIÓN TÉCNICA CONTINUA", 148, 60, null, null, "center");
+            
+            doc.setFontSize(35);
+            doc.setTextColor(88, 204, 2);
+            doc.text("CERTIFICADO TÉCNICO", 148, 100, null, null, "center");
+            
+            doc.setFontSize(18);
+            doc.setTextColor(60, 60, 60);
+            doc.text("OTORGADO A: ESTUDIANTE DE MANTENIMIENTO", 148, 120, null, null, "center");
+            doc.text("Por completar las competencias de Fase 1 (TSU)", 148, 135, null, null, "center");
             
             doc.setFontSize(10);
             doc.setTextColor(150, 150, 150);
-            doc.text("EN ALIANZA CON CRITERIOS DE CAPACITACIÓN STPS", 148, 55, null, null, "center");
-
-            doc.setFontSize(18);
-            doc.setTextColor(40, 40, 40);
-            doc.text("OTORGA EL PRESENTE RECONOCIMIENTO A:", 148, 85, null, null, "center");
-
-            doc.setFontSize(35);
-            doc.setTextColor(28, 176, 246);
-            doc.text("ESTUDIANTE DESTACADO", 148, 110, null, null, "center");
-
-            doc.setFontSize(16);
-            doc.setTextColor(60, 60, 60);
-            doc.text("Por haber acreditado con éxito las competencias de:", 148, 130, null, null, "center");
-
-            doc.setFontSize(22);
-            doc.setTextColor(88, 204, 2);
-            doc.text("TÉCNICO SUPERIOR EN MANTENIMIENTO DE SISTEMAS", 148, 145, null, null, "center");
-
-            doc.setFontSize(9);
-            doc.setTextColor(180, 180, 180);
-            const folio = `FOLIO-MX-${Date.now()}`;
-            doc.text(`Validación Electrónica: ${folio} | México 2024`, 148, 185, null, null, "center");
-            doc.text("Este documento avala 40 horas de formación teórica-práctica.", 148, 190, null, null, "center");
-
-            doc.save("Certificado_TSU_ElectroMaster.pdf");
+            doc.text("Validación Folio: EM-MX-STPS-2024 | ID: " + Date.now(), 148, 180, null, null, "center");
+            
+            doc.save("Certificado_ElectroMaster_TSU.pdf");
         }
 
         window.onload = renderMap;
