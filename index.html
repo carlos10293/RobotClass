@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ReparaPro Elite Academy | Sistema de Gestión</title>
+    <title>ReparaPro Elite Academy | Manual Validation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <!-- SDK de Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURACIÓN REAL DEL USUARIO
         const firebaseConfig = {
             apiKey: "AIzaSyACidwxVX3idvV2LLZ8gnwpa6Pq_cTv28I",
             authDomain: "roboclass-40e9b.firebaseapp.com",
@@ -24,348 +22,269 @@
             measurementId: "G-G18N3386PW"
         };
 
-        const appId = "roboclass-40e9b"; // Usamos tu Project ID como identificador de la app
-
-        // Inicialización
+        const appId = "roboclass-40e9b";
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Variables Globales de Estado
-        window.user = null;
-        window.userProgress = {
-            modulesCompleted: [],
-            examPassed: false,
-            certId: null
-        };
+        // CONFIGURACIÓN DE TU NEGOCIO
+        const TU_WHATSAPP = "5491122334455"; // Reemplaza con tu número (incluye código país)
+        const PRECIO_CERT = "25.00 USD";
 
-        // --- FUNCIONES DE AUTENTICACIÓN ---
+        const COURSE_CONTENT = [
+            { id: 'm1', title: 'Soldadura SMD Nivel 1', video: 'dQw4w9WgXcQ', desc: 'Uso correcto de la estación de calor.' },
+            { id: 'm2', title: 'Lectura de Esquemas', video: 'P_H9-fB0K_0', desc: 'Interpretación de planos de placas base.' },
+            { id: 'm3', title: 'Reballing Avanzado', video: 'dQw4w9WgXcQ', desc: 'Técnicas con aleación 183°C.' }
+        ];
+
+        window.user = null;
+        window.userData = null;
+
+        // --- AUTH ---
         window.handleAuthAction = async (type) => {
             const email = document.getElementById('auth-email').value;
             const pass = document.getElementById('auth-pass').value;
             const name = document.getElementById('auth-name').value;
-
-            if (!email || !pass) return showToast("Email y contraseña requeridos", "error");
-
             try {
                 if (type === 'signup') {
-                    if (!name) return showToast("Nombre requerido para el registro", "error");
                     const res = await createUserWithEmailAndPassword(auth, email, pass);
-                    
-                    // Guardar perfil en Firestore bajo la ruta segura de la Fase 1
-                    // Ruta: /artifacts/{appId}/users/{userId}/profile
                     await setDoc(doc(db, 'artifacts', appId, 'users', res.user.uid, 'profile'), {
                         displayName: name,
                         email: email,
-                        progress: { modulesCompleted: [], examPassed: false, certId: null },
+                        isPaid: false, 
+                        status: 'student', // 'student' o 'certified'
+                        progress: { modulesCompleted: [] },
                         enrolledAt: new Date().toISOString()
                     });
-                    showToast("Cuenta creada con éxito", "success");
                 } else {
                     await signInWithEmailAndPassword(auth, email, pass);
-                    showToast("Bienvenido de nuevo", "success");
                 }
-            } catch (err) {
-                console.error(err);
-                showToast("Error: " + err.code, "error");
-            }
+            } catch (err) { showToast("Error de acceso", "error"); }
         };
 
         window.logout = () => signOut(auth);
 
-        // --- OBSERVADOR DE ESTADO (EL CORAZÓN DE LA APP) ---
-        onAuthStateChanged(auth, async (u) => {
+        // --- OBSERVER ---
+        onAuthStateChanged(auth, (u) => {
             window.user = u;
-            const landing = document.getElementById('landing-section');
-            const appView = document.getElementById('app-section');
-
             if (u) {
-                landing.classList.add('hidden');
-                appView.classList.remove('hidden');
-                
-                // Cargar datos del perfil en tiempo real
-                const docRef = doc(db, 'artifacts', appId, 'users', u.uid, 'profile');
-                onSnapshot(docRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        window.userProgress = data.progress;
-                        document.getElementById('user-display-name').innerText = data.displayName || u.email;
-                        updateUIProgress();
+                onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'profile'), (snap) => {
+                    if (snap.exists()) {
+                        window.userData = snap.data();
+                        renderApp();
                     }
-                }, (error) => {
-                    console.error("Error cargando perfil:", error);
                 });
-
-            } else {
-                landing.classList.remove('hidden');
-                appView.classList.add('hidden');
-            }
+                showSection('app');
+            } else { showSection('landing'); }
         });
 
-        // --- PERSISTENCIA DE PROGRESO ---
-        window.markModuleComplete = async (moduleId) => {
-            if (!window.user) return;
-            const completed = [...(window.userProgress.modulesCompleted || [])];
+        // --- RENDER ---
+        function renderApp() {
+            document.getElementById('user-name-display').innerText = window.userData.displayName;
             
-            if (!completed.includes(moduleId)) {
-                completed.push(moduleId);
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile');
-                    await updateDoc(docRef, { "progress.modulesCompleted": completed });
-                    showToast("¡Lección completada!", "success");
-                } catch (e) {
-                    showToast("Error al guardar progreso", "error");
-                }
+            // Lista de Módulos
+            const list = document.getElementById('module-list');
+            list.innerHTML = COURSE_CONTENT.map(mod => `
+                <div class="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition cursor-pointer mb-2" onclick="loadVideo('${mod.id}')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-blue-500 font-bold">${mod.id.replace('m','')}</div>
+                        <h4 class="font-bold text-sm">${mod.title}</h4>
+                    </div>
+                    ${window.userData.progress.modulesCompleted.includes(mod.id) ? '<i class="fas fa-check text-emerald-500"></i>' : ''}
+                </div>
+            `).join('');
+
+            // Lógica de Pago Manual
+            const paywall = document.getElementById('paywall-section');
+            const exam = document.getElementById('exam-ready');
+            
+            if (window.userData.isPaid) {
+                paywall.classList.add('hidden');
+                exam.classList.remove('hidden');
+            } else {
+                paywall.classList.remove('hidden');
+                exam.classList.add('hidden');
+            }
+        }
+
+        window.loadVideo = (id) => {
+            const mod = COURSE_CONTENT.find(m => m.id === id);
+            document.getElementById('video-frame').src = `https://www.youtube.com/embed/${mod.video}`;
+            document.getElementById('video-title').innerText = mod.title;
+            document.getElementById('mark-btn').onclick = () => window.markComplete(id);
+            showSubView('content');
+        };
+
+        window.markComplete = async (id) => {
+            const current = window.userData.progress.modulesCompleted;
+            if(!current.includes(id)) {
+                await updateDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile'), {
+                    "progress.modulesCompleted": [...current, id]
+                });
+                showToast("Lección guardada", "success");
             }
         };
 
-        window.saveExamResult = async (officialName) => {
-            if (!window.user) return;
-            const certId = `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'profile');
-                await updateDoc(docRef, { 
-                    "progress.examPassed": true,
-                    "progress.certId": certId,
-                    "displayName": officialName 
-                });
-                return certId;
-            } catch (e) {
-                showToast("Error al emitir certificado", "error");
-            }
+        // --- BOTÓN DE PAGO WHATSAPP ---
+        window.payViaWhatsApp = () => {
+            const msg = `Hola ReparaPro! Quiero desbloquear mi certificado. Mi correo es: ${window.userData.email}. Ya realicé el pago de ${PRECIO_CERT}. Adjunto comprobante.`;
+            const url = `https://wa.me/${TU_WHATSAPP}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+            showToast("Abriendo WhatsApp...", "success");
         };
+
+        window.generateCert = () => {
+            const certId = "CERT-" + Math.random().toString(36).toUpperCase().slice(2, 10);
+            document.getElementById('out-name').innerText = window.userData.displayName.toUpperCase();
+            document.getElementById('out-id').innerText = certId;
+            showSection('cert');
+        };
+
     </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
-        :root { --primary: #3b82f6; --dark: #0f172a; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--dark); color: white; margin: 0; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
-        .module-card.completed { border-left: 4px solid #10b981; }
-        .module-card.completed i.fa-check-circle { color: #10b981; }
-        
-        /* Estilos para impresión del certificado */
-        @media print {
-            body * { visibility: hidden; }
-            #cert-print-area, #cert-print-area * { visibility: visible; }
-            #cert-print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            .no-print { display: none !important; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap');
+        body { font-family: 'Outfit', sans-serif; background: #080a12; color: white; }
+        .glass { background: rgba(15, 18, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .hidden { display: none !important; }
+        @media print { .no-print { display: none; } #cert-area { display: block !important; } }
     </style>
 </head>
 <body>
 
-    <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-x-full transition-all duration-300 p-4 rounded-xl shadow-2xl font-bold"></div>
+    <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-x-full transition-all duration-300 p-4 rounded-xl font-bold"></div>
 
-    <!-- SECCIÓN: ACCESO -->
-    <section id="landing-section" class="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-900 to-slate-900">
-        <div class="max-w-md w-full space-y-8">
-            <div class="text-center">
-                <div class="inline-block p-4 bg-blue-600 rounded-3xl shadow-2xl shadow-blue-500/20 mb-6">
-                    <i class="fas fa-microchip text-4xl"></i>
-                </div>
-                <h1 class="text-4xl font-black tracking-tighter mb-2">REPARAPRO <span class="text-blue-500">ELITE</span></h1>
-                <p class="text-slate-400">Ingresa a tu panel de formación técnica</p>
-            </div>
-
-            <div class="glass p-8 rounded-[2.5rem] space-y-4">
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Nombre Completo (Solo nuevos)</label>
-                    <input type="text" id="auth-name" class="w-full bg-slate-800/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition" placeholder="Juan Pérez">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Correo Electrónico</label>
-                    <input type="email" id="auth-email" class="w-full bg-slate-800/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition" placeholder="tu@email.com">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Contraseña</label>
-                    <input type="password" id="auth-pass" class="w-full bg-slate-800/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 transition" placeholder="••••••••">
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4 pt-4">
-                    <button onclick="handleAuthAction('login')" class="bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-bold transition">Entrar</button>
-                    <button onclick="handleAuthAction('signup')" class="bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold transition shadow-lg shadow-blue-600/20">Registrar</button>
-                </div>
+    <!-- LANDING / LOGIN -->
+    <section id="landing-section" class="min-h-screen flex items-center justify-center p-6">
+        <div class="max-w-md w-full glass p-10 rounded-[2.5rem] space-y-6">
+            <h1 class="text-3xl font-black text-center text-blue-500">REPARAPRO <span class="text-white">ELITE</span></h1>
+            <div class="space-y-4">
+                <input type="text" id="auth-name" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5" placeholder="Tu Nombre Completo">
+                <input type="email" id="auth-email" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5" placeholder="Tu Email">
+                <input type="password" id="auth-pass" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/5" placeholder="Contraseña">
+                <button onclick="handleAuthAction('signup')" class="w-full bg-blue-600 p-4 rounded-2xl font-bold shadow-xl shadow-blue-600/20">Empezar a Estudiar</button>
+                <button onclick="handleAuthAction('login')" class="w-full text-slate-500 text-sm font-bold">Ya tengo cuenta (Ingresar)</button>
             </div>
         </div>
     </section>
 
-    <!-- SECCIÓN: DASHBOARD -->
-    <section id="app-section" class="hidden min-h-screen">
-        <nav class="glass sticky top-0 z-50 px-8 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <i class="fas fa-microchip text-blue-500 text-xl"></i>
-                <span class="font-black tracking-tight text-xl">REPARAPRO</span>
-            </div>
+    <!-- DASHBOARD -->
+    <section id="app-section" class="hidden min-h-screen no-print">
+        <header class="p-6 flex justify-between items-center glass sticky top-0 z-40">
+            <h2 class="font-black italic">CAMPUS VIRTUAL</h2>
             <div class="flex items-center gap-4">
-                <div class="text-right hidden sm:block">
-                    <p id="user-display-name" class="text-sm font-bold leading-none"></p>
-                    <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest">Estudiante Elite</span>
-                </div>
-                <button onclick="logout()" class="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
+                <span id="user-name-display" class="text-sm font-bold opacity-50"></span>
+                <button onclick="logout()" class="text-red-400"><i class="fas fa-sign-out-alt"></i></button>
             </div>
-        </nav>
+        </header>
 
-        <main class="max-w-7xl mx-auto p-6 grid lg:grid-cols-12 gap-8">
-            <!-- Sidebar -->
-            <aside class="lg:col-span-3 space-y-6">
-                <div class="glass p-6 rounded-[2rem]">
-                    <h4 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-widest">Tu Avance</h4>
-                    <div class="h-4 bg-slate-800 rounded-full overflow-hidden mb-2">
-                        <div id="progress-bar-fill" class="h-full bg-blue-500 transition-all duration-1000" style="width: 0%"></div>
-                    </div>
-                    <p id="progress-text" class="text-sm font-bold text-blue-400 text-center">0%</p>
+        <main class="max-w-7xl mx-auto p-6 grid lg:grid-cols-12 gap-6">
+            <!-- Sidebar Módulos -->
+            <div class="lg:col-span-4 space-y-4">
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Temario del Curso</h3>
+                <div id="module-list"></div>
+                
+                <div onclick="showSubView('exam')" class="p-5 rounded-2xl bg-gradient-to-br from-emerald-600/20 to-emerald-900/20 border border-emerald-500/30 cursor-pointer hover:scale-105 transition">
+                    <h4 class="font-bold text-emerald-400"><i class="fas fa-certificate mr-2"></i> Mi Certificación</h4>
+                    <p class="text-[10px] text-emerald-500/60 uppercase">Disponible tras validación manual</p>
                 </div>
+            </div>
 
-                <nav class="space-y-2">
-                    <button onclick="showSubView('curriculum')" class="w-full p-4 rounded-2xl bg-blue-600 font-bold flex items-center gap-3">
-                        <i class="fas fa-book-open"></i> Contenido
-                    </button>
-                    <button onclick="showSubView('exam')" class="w-full p-4 rounded-2xl glass hover:bg-white/5 font-bold flex items-center gap-3 text-slate-400">
-                        <i class="fas fa-certificate"></i> Examen y Título
-                    </button>
-                </nav>
-            </aside>
-
-            <!-- Content Area -->
-            <div class="lg:col-span-9">
-                <div id="curriculum-view" class="space-y-6">
-                    <div class="module-card glass p-6 rounded-[2rem] space-y-4 transition-all" id="mod-intro">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="text-2xl font-bold">1. Introducción y Seguridad</h3>
-                                <p class="text-slate-400 text-sm">Normas ESD y herramientas básicas.</p>
-                            </div>
-                            <button onclick="markModuleComplete('mod-intro')" class="bg-emerald-500/10 text-emerald-500 p-3 rounded-xl hover:bg-emerald-500 hover:text-white transition">
-                                <i class="fas fa-check"></i>
-                            </button>
-                        </div>
-                        <div class="aspect-video bg-black rounded-3xl overflow-hidden">
-                            <iframe class="w-full h-full" src="https://www.youtube.com/embed/P_H9-fB0K_0" frameborder="0" allowfullscreen></iframe>
-                        </div>
+            <!-- Content -->
+            <div class="lg:col-span-8">
+                <div id="content-view" class="space-y-6">
+                    <div class="aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5">
+                        <iframe id="video-frame" class="w-full h-full" src="" frameborder="0"></iframe>
                     </div>
-
-                    <div class="module-card glass p-6 rounded-[2rem] space-y-4 transition-all" id="mod-multimetro">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="text-2xl font-bold">2. Dominio del Multímetro</h3>
-                                <p class="text-slate-400 text-sm">Escalas, mediciones y diagnóstico de fallas.</p>
-                            </div>
-                            <button onclick="markModuleComplete('mod-multimetro')" class="bg-emerald-500/10 text-emerald-500 p-3 rounded-xl hover:bg-emerald-500 hover:text-white transition">
-                                <i class="fas fa-check"></i>
-                            </button>
-                        </div>
-                        <div class="p-8 border-2 border-dashed border-white/5 rounded-3xl text-center text-slate-500 italic">
-                            Video Próximamente...
-                        </div>
+                    <div class="flex justify-between items-center">
+                        <h3 id="video-title" class="text-2xl font-bold">Selecciona una lección</h3>
+                        <button id="mark-btn" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-sm">Marcar como visto</button>
                     </div>
                 </div>
 
-                <div id="exam-view" class="hidden space-y-6 animate-in fade-in duration-500">
-                    <div class="glass p-12 rounded-[3rem] text-center max-w-2xl mx-auto">
-                        <div class="w-20 h-20 bg-amber-500/20 text-amber-500 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6">
-                            <i class="fas fa-medal"></i>
+                <!-- PAGO MANUAL POR WHATSAPP -->
+                <div id="exam-view" class="hidden space-y-6">
+                    <div id="paywall-section" class="glass p-10 rounded-[3rem] text-center space-y-8 animate-in fade-in">
+                        <div class="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto text-3xl text-blue-500">
+                            <i class="fas fa-lock"></i>
                         </div>
-                        <h2 class="text-4xl font-black mb-4">Certificación Final</h2>
-                        <p class="text-slate-400 mb-8">Debes completar todas las lecciones anteriores para habilitar el examen. El nombre que ingreses aquí será permanente en tu certificado.</p>
+                        <div class="space-y-3">
+                            <h2 class="text-4xl font-black tracking-tighter uppercase italic">Obtén tu Diploma</h2>
+                            <p class="text-slate-400">Has terminado las lecciones. Para emitir tu certificado firmado y validado, debes abonar el derecho a examen.</p>
+                        </div>
                         
-                        <div class="space-y-4">
-                            <input type="text" id="cert-name-input" class="w-full bg-slate-900 border border-white/10 p-5 rounded-2xl text-center font-bold text-xl outline-none focus:border-blue-500" placeholder="TU NOMBRE COMPLETO">
-                            <button onclick="startFinalExam()" class="w-full bg-emerald-600 hover:bg-emerald-500 p-5 rounded-2xl font-black text-lg transition shadow-xl shadow-emerald-600/20">
-                                EMITIR MI CERTIFICADO
+                        <div class="max-w-xs mx-auto space-y-4">
+                            <div class="bg-slate-900 p-6 rounded-3xl border border-white/5">
+                                <p class="text-slate-500 text-xs uppercase">Precio del trámite</p>
+                                <h3 class="text-3xl font-black">25.00 USD</h3>
+                            </div>
+                            <button onclick="payViaWhatsApp()" class="w-full bg-emerald-600 p-5 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20">
+                                <i class="fab fa-whatsapp text-2xl"></i> PAGAR POR WHATSAPP
                             </button>
+                            <p class="text-[10px] text-slate-500">Tu certificado será activado manualmente por un administrador tras recibir el comprobante.</p>
                         </div>
+                    </div>
+
+                    <div id="exam-ready" class="hidden glass p-10 rounded-[3rem] text-center space-y-6">
+                        <div class="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-3xl text-emerald-500">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h2 class="text-3xl font-black">¡PAGO VALIDADO!</h2>
+                        <p class="text-slate-400">Ya eres un técnico verificado. Haz clic abajo para generar tu diploma oficial.</p>
+                        <button onclick="generateCert()" class="w-full bg-blue-600 p-5 rounded-2xl font-black">GENERAR MI DIPLOMA</button>
                     </div>
                 </div>
             </div>
         </main>
     </section>
 
-    <!-- ÁREA DE CERTIFICADO -->
-    <section id="cert-print-area" class="hidden">
-        <div class="p-12 border-[20px] border-slate-900 bg-white text-slate-900 text-center min-h-[600px] flex flex-col justify-between">
-            <div>
-                <h4 class="text-blue-600 font-bold uppercase tracking-[0.3em] mb-10">Diploma de Excelencia</h4>
-                <p class="text-xl font-serif italic text-slate-500 mb-2">Se otorga con honor a:</p>
-                <h1 id="display-name-cert" class="text-6xl font-black italic border-b-4 border-slate-100 inline-block px-12 pb-4">JUAN PEREZ</h1>
+    <!-- CERTIFICADO -->
+    <section id="cert-section" class="hidden bg-white text-slate-900 p-10 min-h-screen">
+        <div id="cert-area" class="max-w-[1000px] mx-auto border-[20px] border-double border-slate-900 p-20 bg-white shadow-2xl relative">
+            <div class="flex justify-between">
+                <p class="text-xs font-bold tracking-[0.3em] text-blue-600">REPARAPRO ELITE NETWORK</p>
+                <i class="fas fa-microchip text-slate-100 text-6xl absolute top-10 right-10"></i>
             </div>
-            
-            <div>
-                <p class="text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto">
-                    Por haber completado satisfactoriamente el programa avanzado de 
-                    <strong class="text-slate-900">MICROELECTRÓNICA Y REPARACIÓN PROFESIONAL</strong> 
-                    con un desempeño excepcional.
-                </p>
+            <div class="text-center mt-20 space-y-10">
+                <p class="font-serif italic text-2xl text-slate-400">Certificamos oficialmente que</p>
+                <h1 id="out-name" class="text-6xl font-black underline decoration-blue-600 decoration-8 underline-offset-8">ALUMNO</h1>
+                <p class="text-2xl font-bold text-slate-700">TÉCNICO ESPECIALISTA EN MICROELECTRÓNICA</p>
             </div>
-
-            <div class="flex justify-between items-end px-12">
-                <div class="text-left">
-                    <p class="text-[10px] font-mono text-slate-400 mb-1">ID VERIFICACIÓN:</p>
-                    <p id="display-id-cert" class="text-sm font-mono font-bold tracking-tighter">CERT-XXXXX</p>
+            <div class="flex justify-between mt-32 border-t pt-10 border-slate-100">
+                <div class="text-left font-mono text-[10px] space-y-1">
+                    <p>SERIAL: <span id="out-id"></span></p>
+                    <p>VERIFICACIÓN: REPARAPRO.COM/VALIDATE</p>
                 </div>
-                <div class="relative">
-                    <i class="fas fa-award text-8xl text-amber-500"></i>
-                </div>
-                <div class="text-right">
-                    <p class="text-[10px] font-mono text-slate-400 mb-1">FECHA DE EMISIÓN:</p>
-                    <p id="display-date-cert" class="text-sm font-mono font-bold">19/03/2026</p>
+                <div class="text-center">
+                    <div class="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center text-amber-500 text-3xl mx-auto mb-2 border-8 border-white shadow-xl">
+                        <i class="fas fa-award"></i>
+                    </div>
+                    <p class="text-[10px] font-bold">SELLO DE EXCELENCIA</p>
                 </div>
             </div>
         </div>
-        <div class="no-print p-10 text-center">
-            <button onclick="window.print()" class="bg-blue-600 px-10 py-4 rounded-2xl font-bold">Descargar / Imprimir</button>
-            <button onclick="location.reload()" class="ml-4 text-slate-400 font-bold underline">Volver al Curso</button>
+        <div class="no-print text-center mt-10">
+            <button onclick="window.print()" class="bg-black text-white px-10 py-4 rounded-2xl font-bold">IMPRIMIR / PDF</button>
+            <button onclick="location.reload()" class="text-slate-400 ml-6 underline">Volver al panel</button>
         </div>
     </section>
 
     <script>
-        // --- CONTROL DE VISTAS ---
+        function showSection(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id + '-section').classList.remove('hidden');
+        }
         function showSubView(id) {
-            document.getElementById('curriculum-view').classList.add('hidden');
+            document.getElementById('content-view').classList.add('hidden');
             document.getElementById('exam-view').classList.add('hidden');
-            document.getElementById(`${id}-view`).classList.remove('hidden');
+            document.getElementById(id + '-view').classList.remove('hidden');
         }
-
-        function showToast(msg, type) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.className = `fixed top-5 right-5 z-[100] p-4 rounded-xl shadow-2xl transition-all duration-300 ${type === 'error' ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`;
-            t.classList.remove('translate-x-full');
-            setTimeout(() => t.classList.add('translate-x-full'), 3000);
-        }
-
-        function updateUIProgress() {
-            const total = 2; // mod-intro y mod-multimetro
-            const completed = (window.userProgress.modulesCompleted || []).length;
-            const percentage = Math.round((completed / total) * 100);
-
-            document.getElementById('progress-bar-fill').style.width = `${percentage}%`;
-            document.getElementById('progress-text').innerText = `${percentage}% Completado`;
-
-            // Estilos de tarjetas completadas
-            if(window.userProgress.modulesCompleted.includes('mod-intro')) document.getElementById('mod-intro').classList.add('completed');
-            if(window.userProgress.modulesCompleted.includes('mod-multimetro')) document.getElementById('mod-multimetro').classList.add('completed');
-        }
-
-        async function startFinalExam() {
-            const name = document.getElementById('cert-name-input').value;
-            if(!name) return showToast("Escribe tu nombre oficial", "error");
-
-            if(window.userProgress.modulesCompleted.length < 2) {
-                return showToast("Debes completar todos los módulos primero", "error");
-            }
-
-            const certId = await window.saveExamResult(name);
-            if(certId) {
-                document.getElementById('display-name-cert').innerText = name.toUpperCase();
-                document.getElementById('display-id-cert').innerText = certId;
-                document.getElementById('display-date-cert').innerText = new Date().toLocaleDateString();
-                
-                document.getElementById('app-section').classList.add('hidden');
-                document.getElementById('cert-print-area').classList.remove('hidden');
-            }
+        function showToast(m, t) {
+            const el = document.getElementById('toast');
+            el.innerText = m;
+            el.className = `fixed top-5 right-5 z-[100] p-4 rounded-xl font-bold transition-all ${t==='error'?'bg-red-500':'bg-blue-600'} text-white`;
+            el.classList.remove('translate-x-full');
+            setTimeout(() => el.classList.add('translate-x-full'), 3000);
         }
     </script>
 </body>
