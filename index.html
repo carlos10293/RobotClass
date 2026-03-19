@@ -1,323 +1,358 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElectroMaster PRO - Engineering Academy</title>
-    
+    <title>ElectroMaster - Pro Learning</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=JetBrains+Mono&display=swap');
         
-        :root { 
-            --primary: #3b82f6; 
-            --success: #10b981; 
-            --bg-dark: #020617;
+        :root {
+            --duo-green: #58cc02;
+            --duo-blue: #1cb0f6;
+            --duo-red: #ff4b4b;
+            --duo-yellow: #ffc800;
         }
 
         body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-dark); 
-            color: #f8fafc; 
+            font-family: 'Nunito', sans-serif; 
+            background-color: #0f172a; 
+            color: white;
+            user-select: none;
             overflow-x: hidden;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
-        .glass-card { background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%); }
-        
-        .progress-bar { transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .node {
+            width: 80px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 6px solid rgba(0,0,0,0.2);
+            z-index: 10;
+        }
 
-        .btn-push { 
-            transition: all 0.1s; 
-            border-bottom-width: 4px;
-        }
-        .btn-push:active { 
-            transform: translateY(2px); 
-            border-bottom-width: 0px; 
-            margin-bottom: 2px;
+        .node:active {
+            transform: translateY(4px);
+            border-bottom-width: 0px;
         }
 
-        .quiz-option {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .quiz-option:hover { transform: translateX(8px); }
+        .node-locked { background: #334155; border-color: #1e293b; color: #64748b; cursor: not-allowed; }
+        .node-active { background: var(--duo-blue); border-color: #1a8cc4; color: white; box-shadow: 0 0 20px rgba(28, 176, 246, 0.4); }
+        .node-done { background: var(--duo-green); border-color: #46a302; color: white; }
 
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
-        }
-        .scanline::after {
-            content: "";
+        .path-line {
             position: absolute;
-            inset: 0;
-            background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.05), transparent);
-            animation: scanline 4s linear infinite;
-            pointer-events: none;
+            height: 8px;
+            background: #334155;
+            z-index: 1;
+            transform-origin: left center;
         }
+
+        .option-card {
+            border: 2px solid #334155;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .option-card:hover { background: rgba(255,255,255,0.05); border-color: #475569; }
+        .option-selected { border-color: var(--duo-blue); background: rgba(28,176,246,0.1); }
+        
+        .feedback-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 100;
+        }
+
+        .feedback-show { transform: translateY(0); }
+
+        .life-heart { color: var(--duo-red); transition: transform 0.3s; }
+        .heart-pop { transform: scale(1.5); }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
-<body class="min-h-screen scanline">
+<body>
 
-    <!-- PANTALLA DE CARGA / AUTH -->
-    <div id="auth-screen" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-4">
-        <div class="w-full max-w-md space-y-8 text-center animate-in fade-in duration-700">
-            <div class="space-y-2">
-                <div class="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-gradient-to-br from-blue-500 to-blue-700 shadow-2xl shadow-blue-500/20 mb-4 transform -rotate-6">
-                    <i class="fas fa-microchip text-5xl text-white"></i>
-                </div>
-                <h1 class="text-5xl font-black tracking-tighter italic uppercase leading-none">ElectroMaster <span class="text-blue-500">PRO</span></h1>
-                <p class="text-slate-400 font-medium">Sistemas de Control & Potencia</p>
+    <!-- Header Stats -->
+    <nav class="fixed top-0 w-full bg-[#0f172a] border-b border-slate-800 z-50 p-4 flex justify-between items-center">
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-fire text-orange-500 text-xl"></i>
+                <span id="stat-streak" class="font-black text-slate-300">1</span>
             </div>
-
-            <div class="glass-card p-8 rounded-[2.5rem] space-y-4 border border-white/5 shadow-2xl">
-                <div class="space-y-4">
-                    <div class="relative">
-                        <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-                        <input type="email" id="email" class="w-full bg-slate-900/50 border border-slate-800 p-4 pl-12 rounded-2xl focus:ring-2 ring-blue-500 outline-none transition-all placeholder:text-slate-600" placeholder="usuario@ingenieria.com">
-                    </div>
-                    <div class="relative">
-                        <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-                        <input type="password" id="pass" class="w-full bg-slate-900/50 border border-slate-800 p-4 pl-12 rounded-2xl focus:ring-2 ring-blue-500 outline-none transition-all placeholder:text-slate-600" placeholder="Contraseña">
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-3 pt-2">
-                    <button onclick="actions.login()" class="py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black italic transition-all btn-push border-blue-800 uppercase">Acceder</button>
-                    <button onclick="actions.register()" class="py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl font-black italic transition-all btn-push border-slate-950 text-slate-300 uppercase">Crear</button>
-                </div>
-
-                <div class="relative py-2">
-                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
-                    <div class="relative flex justify-center text-[10px] uppercase font-bold tracking-widest"><span class="bg-[#0b1224] px-3 text-slate-500">Protocolo de Acceso</span></div>
-                </div>
-
-                <button onclick="actions.loginAnon()" class="w-full py-4 border border-slate-800 rounded-2xl font-bold hover:bg-white/5 transition-all flex items-center justify-center gap-2 group">
-                    <i class="fas fa-user-secret text-slate-500 group-hover:text-blue-400 transition-colors"></i> 
-                    <span>MODO INVITADO</span>
-                </button>
+            <div class="flex items-center gap-2">
+                <i class="fas fa-bolt text-yellow-400 text-xl"></i>
+                <span id="stat-xp" class="font-black text-slate-300">0</span>
             </div>
-            
-            <p id="auth-error" class="text-red-400 text-xs font-bold hidden"></p>
         </div>
-    </div>
+        <div class="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-full">
+            <i class="fas fa-heart life-heart" id="heart-icon"></i>
+            <span id="stat-lives" class="font-black">5</span>
+        </div>
+    </nav>
 
-    <!-- MAIN UI -->
-    <div id="main-ui" class="hidden">
-        <!-- HEADER -->
-        <nav class="fixed top-0 left-0 right-0 h-20 glass z-50 px-6 flex items-center justify-between border-b border-white/5">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <i class="fas fa-microchip text-white text-xs"></i>
-                </div>
-                <div class="flex flex-col">
-                    <span id="user-name" class="font-black italic text-sm text-white tracking-tight">ING. CARLOS</span>
-                    <span id="user-rank" class="text-[9px] font-black text-blue-500 tracking-[0.2em] uppercase">Rango: Aspirante</span>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-4">
-                <div class="hidden md:flex flex-col items-end">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-shield-halved text-blue-400 text-[10px]"></i>
-                        <span id="user-xp" class="font-mono font-bold text-sm">0 XP</span>
-                    </div>
-                    <div class="w-24 h-1 bg-slate-800 rounded-full mt-1 overflow-hidden">
-                        <div id="rank-progress" class="h-full bg-blue-500" style="width: 10%"></div>
-                    </div>
-                </div>
-                <button onclick="actions.logout()" class="w-10 h-10 rounded-xl glass border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/10 transition-colors">
-                    <i class="fas fa-power-off"></i>
-                </button>
-            </div>
-        </nav>
+    <!-- Map View -->
+    <main id="view-map" class="pt-24 pb-32 flex flex-col items-center min-h-screen relative">
+        <div id="map-container" class="w-full max-w-md relative flex flex-col items-center gap-12">
+            <!-- Nodes will be injected here -->
+        </div>
+    </main>
 
-        <!-- APP CONTENT -->
-        <main id="app-router" class="pt-24 pb-32 px-6 max-w-2xl mx-auto space-y-8">
-            <!-- Dinámico -->
+    <!-- Quiz Overlay -->
+    <div id="view-quiz" class="fixed inset-0 bg-[#0f172a] z-[60] hidden flex flex-col">
+        <header class="p-4 flex items-center gap-4">
+            <button onclick="exitQuiz()" class="text-slate-400 text-2xl p-2"><i class="fas fa-times"></i></button>
+            <div class="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden">
+                <div id="quiz-progress" class="h-full bg-duo-green transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </header>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+            <div id="question-content" class="max-w-xl mx-auto py-8">
+                <!-- Question injected here -->
+            </div>
         </main>
 
-        <!-- BOTTOM NAV -->
-        <div class="fixed bottom-0 left-0 right-0 p-6 pointer-events-none">
-            <div class="max-w-md mx-auto glass p-2 rounded-[2rem] border border-white/10 flex justify-around pointer-events-auto shadow-2xl">
-                <button onclick="actions.setView('map')" class="flex-1 py-3 flex flex-col items-center gap-1 text-blue-500">
-                    <i class="fas fa-map-location-dot"></i>
-                    <span class="text-[8px] font-bold uppercase tracking-widest">Carrera</span>
-                </button>
-                <button onclick="actions.setView('cert')" class="flex-1 py-3 flex flex-col items-center gap-1 text-slate-500 hover:text-blue-400 transition-colors">
-                    <i class="fas fa-certificate"></i>
-                    <span class="text-[8px] font-bold uppercase tracking-widest">Diplomas</span>
-                </button>
-                <button onclick="actions.setView('profile')" class="flex-1 py-3 flex flex-col items-center gap-1 text-slate-500 hover:text-blue-400 transition-colors">
-                    <i class="fas fa-ranking-star"></i>
-                    <span class="text-[8px] font-bold uppercase tracking-widest">Rango</span>
+        <!-- Feedback UI -->
+        <div id="feedback-panel" class="feedback-panel p-6">
+            <div class="max-w-xl mx-auto flex flex-col gap-4">
+                <div id="feedback-message" class="flex items-center gap-4">
+                    <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"></div>
+                    <div>
+                        <h3 id="feedback-title" class="font-black text-xl"></h3>
+                        <p id="feedback-text" class="text-sm opacity-90"></p>
+                    </div>
+                </div>
+                <button id="btn-continue" class="w-full py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg">
+                    Continuar
                 </button>
             </div>
         </div>
-    </div>
+    </nav>
 
-    <!-- SCRIPTS -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // CONFIG
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'electromaster-pro';
-
-        const CURRICULUM = [
-            { id: 'm1', title: 'Fundamentos de Carga', icon: 'bolt', diff: 'NIVEL 1', questions: [
-                { q: "¿Cuál es la carga eléctrica de un electrón?", o: ["-1.6x10⁻¹⁹ C", "1.6x10⁻¹⁹ C", "9.1x10⁻³¹ C"], a: 0 },
-                { q: "¿Qué unidad define la Tasa de Flujo de Carga?", o: ["Voltio", "Amperio", "Coulomb"], a: 1 }
+    <script>
+        // DATA SET
+        const LEVELS = [
+            { id: 1, title: "Fundamentos Atómicos", icon: "atom", questions: [
+                {
+                    q: "¿Qué sucede con la resistencia de un conductor si duplicamos su longitud (L) manteniendo el área constante?",
+                    options: ["Se reduce a la mitad", "Se mantiene igual", "Se duplica", "Aumenta exponencialmente"],
+                    correct: 2,
+                    why: "La resistencia es directamente proporcional a la longitud ($R = ρ \cdot L / A$). A mayor camino para los electrones, mayor oposición."
+                },
+                {
+                    q: "En un átomo de silicio, ¿cuántos electrones hay en la banda de valencia?",
+                    options: ["2", "4", "8", "14"],
+                    correct: 1,
+                    why: "El Silicio es un semiconductor del grupo IV, por lo tanto posee 4 electrones en su última capa, permitiendo formar estructuras cristalinas."
+                }
             ]},
-            { id: 'm2', title: 'Análisis de Redes DC', icon: 'diagram-project', diff: 'NIVEL 2', questions: [
-                { q: "En un nodo, la suma de corrientes entrantes es...", o: ["Igual a V/R", "Cero", "Igual a la suma saliente"], a: 2 },
-                { q: "¿Qué teorema simplifica una red a una fuente V y una R en serie?", o: ["Norton", "Thevenin", "Superposición"], a: 1 }
+            { id: 2, title: "Análisis de Redes", icon: "project-diagram", questions: [
+                {
+                    q: "Según la Ley de Corrientes de Kirchhoff (KCL), la suma de corrientes en un nodo es:",
+                    options: ["Igual al voltaje de fuente", "Cero", "Infinita", "Proporcional a la resistencia"],
+                    correct: 1,
+                    why: "Principio de conservación de la carga: toda la corriente que entra a un punto debe salir de él. ΣI = 0."
+                }
             ]},
-            { id: 'm3', title: 'Física de Semiconductores', icon: 'atom', diff: 'NIVEL 3', questions: [
-                { q: "¿Qué sucede con la conductividad del silicio al aumentar la temperatura?", o: ["Aumenta", "Disminuye", "No cambia"], a: 0 },
-                { q: "¿Qué tipo de portador abunda en un material dopado con Boro (P)?", o: ["Electrones", "Huecos", "Iones negativos"], a: 1 }
+            { id: 3, title: "Semiconductores", icon: "microchip", questions: [
+                {
+                    q: "¿Cuál es la caída de tensión aproximada en un diodo de Silicio en polarización directa?",
+                    options: ["0.3V", "0.7V", "1.2V", "5.0V"],
+                    correct: 1,
+                    why: "Es la barrera de potencial estándar necesaria para vencer la zona de deplexión en uniones PN de silicio."
+                }
             ]},
-            { id: 'm4', title: 'Diodos y Aplicaciones', icon: 'wave-square', diff: 'NIVEL 4', questions: [
-                { q: "¿Cuál es el voltaje de codo (Vγ) típico del Silicio?", o: ["0.3V", "0.7V", "1.2V"], a: 1 },
-                { q: "¿Qué diodo se usa específicamente para regulación de voltaje?", o: ["Schottky", "Zener", "Varactor"], a: 1 }
-            ]},
-            { id: 'm5', title: 'Transistores BJT', icon: 'tower-broadcast', diff: 'NIVEL 5', questions: [
-                { q: "Para que un NPN esté en Región Activa, la unión B-C debe estar en...", o: ["Inversa", "Directa", "Corte"], a: 0 },
-                { q: "La relación IC / IB se conoce como...", o: ["Alfa (α)", "Beta (β)", "Gama (γ)"], a: 1 }
-            ]},
-            { id: 'm6', title: 'Tecnología MOSFET', icon: 'microchip', diff: 'NIVEL 6', questions: [
-                { q: "¿Qué parámetro físico controla la corriente en un MOSFET?", o: ["Corriente de Base", "Campo Eléctrico (Vgs)", "Flujo magnético"], a: 1 },
-                { q: "Un MOSFET canal-N se activa cuando Vgs es...", o: ["Negativo", "Cero", "Positivo (Vgs > Vt)"], a: 2 }
-            ]},
-            { id: 'm7', title: 'Amplificadores Operacionales', icon: 'triangle-exclamation', diff: 'NIVEL 7', questions: [
-                { q: "¿Qué ganancia de lazo abierto (Aol) tiene un OpAmp ideal?", o: ["1", "1000", "Infinita"], a: 2 },
-                { q: "¿Cuál es la impedancia de entrada ideal?", o: ["Cero", "Infinita", "50 Ω"], a: 1 }
-            ]},
-            { id: 'm8', title: 'Electrónica Digital', icon: 'binary', diff: 'NIVEL 8', questions: [
-                { q: "Simplifica: A + (A · B)", o: ["A", "B", "A + B"], a: 0 },
-                { q: "¿Qué flip-flop cambia de estado con cada pulso de reloj (Toggle)?", o: ["RS", "D", "JK (J=K=1)"], a: 2 }
-            ]},
-            { id: 'm9', title: 'Microcontroladores & RTOS', icon: 'cpu', diff: 'NIVEL 9', questions: [
-                { q: "¿Qué caracteriza a la arquitectura Harvard?", o: ["Bus único", "Buses separados (Dato/Instr)", "Sin registros"], a: 1 },
-                { q: "¿Qué es el 'Watchdog Timer'?", o: ["Reloj de tiempo real", "Sistema de reinicio ante fallos", "Temporizador de sueño"], a: 1 }
-            ]},
-            { id: 'm10', title: 'Diseño RF y EMI', icon: 'radio', diff: 'NIVEL 10', questions: [
-                { q: "¿Qué es la impedancia característica típica de trazas de RF?", o: ["50 Ω", "1 MΩ", "0.1 Ω"], a: 0 },
-                { q: "¿Cuál es el propósito de un condensador de desacoplo?", o: ["Amplificar señal", "Filtrar ruido de alta frecuencia", "Almacenar carga masiva"], a: 1 }
-            ]}
+            { id: 4, title: "Transistores BJT", icon: "wave-square", questions: [] },
+            { id: 5, title: "Amplificadores OP", icon: "mountain", questions: [] }
         ];
 
-        let state = {
-            user: null,
-            view: 'map',
+        const state = {
+            xp: 0,
+            lives: 5,
+            streak: 1,
+            completed: [],
             activeQuiz: null,
-            quizIdx: 0,
-            score: 0
+            currentQIdx: 0,
+            selectedIdx: null
         };
 
-        const ui = {
-            renderMap() {
-                let html = `
-                    <div class="space-y-2 animate-in fade-in slide-in-from-top-4 duration-500">
-                        <h2 class="text-3xl font-black italic uppercase tracking-tighter">Hoja de Ruta</h2>
-                        <p class="text-slate-500 text-sm font-medium">Desbloquea los niveles completando las pruebas.</p>
-                    </div>
-                    <div class="grid gap-4">
-                `;
+        // UI RENDERERS
+        function renderMap() {
+            const container = document.getElementById('map-container');
+            container.innerHTML = '';
+            
+            LEVELS.forEach((level, index) => {
+                const isDone = state.completed.includes(level.id);
+                const isLocked = index > 0 && !state.completed.includes(LEVELS[index-1].id);
+                const statusClass = isDone ? 'node-done' : (isLocked ? 'node-locked' : 'node-active');
+                
+                // Zig zag offset
+                const offset = Math.sin(index) * 60;
 
-                CURRICULUM.forEach((mod, idx) => {
-                    const isDone = state.user?.completed?.includes(mod.id);
-                    const isLocked = idx > 0 && !state.user?.completed?.includes(CURRICULUM[idx-1].id);
-
-                    html += `
-                        <div onclick="${isLocked ? '' : `actions.startQuiz('${mod.id}')`}" 
-                             class="glass-card p-6 rounded-[2.5rem] flex items-center gap-6 transition-all border border-white/5 relative overflow-hidden group ${isLocked ? 'opacity-30' : 'cursor-pointer hover:border-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/5'}">
-                            
-                            ${isDone ? '<div class="absolute top-0 right-0 w-24 h-24 bg-green-500/5 blur-3xl"></div>' : ''}
-                            
-                            <div class="w-16 h-16 rounded-3xl ${isDone ? 'bg-green-500/10 text-green-500' : 'bg-blue-600/10 text-blue-500'} flex items-center justify-center text-2xl shadow-inner border border-white/5 group-hover:scale-110 transition-transform">
-                                <i class="fas fa-${isLocked ? 'lock' : mod.icon}"></i>
-                            </div>
-
-                            <div class="flex-1">
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest">${mod.diff}</span>
-                                    ${isDone ? '<i class="fas fa-circle-check text-green-500 text-xs"></i>' : ''}
-                                </div>
-                                <h3 class="font-black text-lg text-slate-100 italic leading-none">${mod.title}</h3>
-                            </div>
+                const nodeHtml = `
+                    <div class="relative flex flex-col items-center" style="transform: translateX(${offset}px)">
+                        <div onclick="startLevel(${level.id})" class="node ${statusClass}">
+                            <i class="fas fa-${level.icon} text-2xl"></i>
                         </div>
-                    `;
-                });
-
-                html += `</div>`;
-                document.getElementById('app-router').innerHTML = html;
-            },
-
-            renderQuiz() {
-                const mod = state.activeQuiz;
-                const q = mod.questions[state.quizIdx];
-                const progress = ((state.quizIdx) / mod.questions.length) * 100;
-
-                document.getElementById('app-router').innerHTML = `
-                    <div class="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-500 pb-20">
-                        <div class="flex items-center justify-between">
-                            <button onclick="actions.setView('map')" class="w-10 h-10 rounded-full glass flex items-center justify-center text-slate-400 hover:text-white transition-colors">
-                                <i class="fas fa-arrow-left text-xs"></i>
-                            </button>
-                            <div class="text-center">
-                                <span class="block text-[8px] font-black text-blue-500 uppercase tracking-widest">${mod.diff}</span>
-                                <h2 class="font-black italic uppercase text-sm">${mod.title}</h2>
-                            </div>
-                            <span class="font-mono text-xs font-bold text-blue-500">${state.quizIdx + 1} / ${mod.questions.length}</span>
-                        </div>
-                        
-                        <div class="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                            <div class="h-full bg-blue-500 progress-bar shadow-[0_0_15px_rgba(59,130,246,0.5)]" style="width: ${progress}%"></div>
-                        </div>
-
-                        <div class="glass-card p-10 rounded-[3rem] border border-white/5 shadow-2xl space-y-10">
-                            <h2 class="text-2xl font-bold leading-tight text-slate-100">${q.q}</h2>
-                            <div class="grid gap-4">
-                                ${q.o.map((opt, i) => `
-                                    <button onclick="actions.answer(${i})" class="quiz-option w-full p-6 bg-slate-900/40 hover:bg-blue-600/10 border border-slate-800 rounded-2xl text-left transition-all hover:border-blue-500/40 font-semibold group flex items-center gap-5">
-                                        <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-xs font-black text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                            ${String.fromCharCode(65+i)}
-                                        </div>
-                                        <span class="flex-1">${opt}</span>
-                                    </button>
-                                `).join('')}
-                            </div>
-                        </div>
+                        <span class="mt-2 font-black text-xs uppercase tracking-tighter text-slate-500">${level.title}</span>
                     </div>
                 `;
-            },
+                container.innerHTML += nodeHtml;
+            });
+        }
 
-            renderResult(score, total) {
-                const passed = score === total;
-                if(passed) confetti({ 
-                    particleCount: 150, 
-                    spread: 80, 
-                    origin: { y: 0.6 },
-                    colors: ['#3b82f6', '#10b981', '#ffffff']
-                });
+        function startLevel(id) {
+            const level = LEVELS.find(l => l.id === id);
+            const index = LEVELS.indexOf(level);
+            if (index > 0 && !state.completed.includes(LEVELS[index-1].id)) return;
 
-                document.getElementById('app-router').innerHTML = `
-                    <div class="text-center space-y-8 py-10 animate-in zoom-in duration-500">
-                        <div class="relative inline-block">
-                            <div class="w-32 h-32 rounded-[2.5rem] ${passed ? 'bg-green-500 shadow-green-500/20' : 'bg-red-500 shadow-red-500/20'} shadow-2xl flex items-center justify-center text-5xl text-white mx-auto transform rotate-12 transition-transform">
-                                <i class="fas fa-${passed ? 'award' : 'triangle-exclamation'}"></i>
-                            </div>
+            state.activeQuiz = level;
+            state.currentQIdx = 0;
+            document.getElementById('view-map').classList.add('hidden');
+            document.getElementById('view-quiz').classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = state.activeQuiz.questions[state.currentQIdx];
+            const progress = (state.currentQIdx / state.activeQuiz.questions.length) * 100;
+            document.getElementById('quiz-progress').style.width = `${progress}%`;
+            
+            state.selectedIdx = null;
+            const container = document.getElementById('question-content');
+            
+            container.innerHTML = `
+                <h2 class="text-2xl font-black mb-8 leading-tight animate-in fade-in slide-in-from-top-4">${q.q}</h2>
+                <div class="grid gap-4">
+                    ${q.options.map((opt, i) => `
+                        <div onclick="selectOption(${i})" id="opt-${i}" 
+                             class="option-card p-5 rounded-2xl font-bold flex items-center gap-4 border-2">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-xs">${i+1}</div>
+                            <span>${opt}</span>
                         </div>
-                        
-                        <div class="space-y-2">
-                            <h2 class="text-4xl font-black italic uppercase italic tracking-tighter">${passed ? 'MODULO COMPLETADO' : 'FALLO TÉCNICO'}</h2>
-           
+                    `).join('')}
+                </div>
+            `;
+
+            // Reset feedback
+            const panel = document.getElementById('feedback-panel');
+            panel.className = 'feedback-panel p-6';
+            panel.classList.remove('feedback-show');
+        }
+
+        window.selectOption = (idx) => {
+            document.querySelectorAll('.option-card').forEach(el => el.classList.remove('option-selected'));
+            document.getElementById(`opt-${idx}`).classList.add('option-selected');
+            state.selectedIdx = idx;
+            showCheckButton();
+        };
+
+        function showCheckButton() {
+            const panel = document.getElementById('feedback-panel');
+            panel.innerHTML = `
+                <div class="max-w-xl mx-auto">
+                    <button onclick="validateAnswer()" class="w-full py-4 bg-[#1cb0f6] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_4px_0_#1a8cc4] active:shadow-none active:translate-y-1 transition-all">
+                        Comprobar
+                    </button>
+                </div>
+            `;
+            panel.classList.add('feedback-show');
+            panel.style.background = "#0f172a";
+            panel.style.borderTop = "1px solid #334155";
+        }
+
+        window.validateAnswer = () => {
+            const q = state.activeQuiz.questions[state.currentQIdx];
+            const isCorrect = state.selectedIdx === q.correct;
+            const panel = document.getElementById('feedback-panel');
+            
+            const msgObj = isCorrect ? {
+                bg: '#d7ffb8',
+                color: '#58a700',
+                title: '¡Excelente trabajo!',
+                icon: 'fa-check-circle',
+                btnClass: 'bg-[#58cc02] shadow-[0_4px_0_#46a302]'
+            } : {
+                bg: '#ffdfe0',
+                color: '#ea2b2b',
+                title: 'Solución técnica:',
+                icon: 'fa-times-circle',
+                btnClass: 'bg-[#ff4b4b] shadow-[0_4px_0_#d43535]'
+            };
+
+            if (!isCorrect) {
+                state.lives--;
+                updateStats();
+                if(state.lives <= 0) { alert("¡Sin vidas! Repasando..."); exitQuiz(); return; }
+            } else {
+                state.xp += 50;
+                updateStats();
+                confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
+            }
+
+            panel.style.background = msgObj.bg;
+            panel.innerHTML = `
+                <div class="max-w-xl mx-auto flex flex-col gap-4">
+                    <div class="flex items-start gap-4" style="color: ${msgObj.color}">
+                        <i class="fas ${msgObj.icon} text-4xl"></i>
+                        <div>
+                            <h3 class="font-black text-xl">${msgObj.title}</h3>
+                            <p class="text-sm font-bold opacity-80">${q.why}</p>
+                        </div>
+                    </div>
+                    <button onclick="handleContinue()" class="w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest ${msgObj.btnClass} active:shadow-none active:translate-y-1 transition-all">
+                        Continuar
+                    </button>
+                </div>
+            `;
+        };
+
+        window.handleContinue = () => {
+            if (state.currentQIdx < state.activeQuiz.questions.length - 1) {
+                state.currentQIdx++;
+                renderQuestion();
+            } else {
+                finishLevel();
+            }
+        };
+
+        function finishLevel() {
+            state.completed.push(state.activeQuiz.id);
+            exitQuiz();
+            renderMap();
+        }
+
+        function exitQuiz() {
+            document.getElementById('view-map').classList.remove('hidden');
+            document.getElementById('view-quiz').classList.add('hidden');
+        }
+
+        function updateStats() {
+            document.getElementById('stat-xp').innerText = state.xp;
+            document.getElementById('stat-lives').innerText = state.lives;
+            const heart = document.getElementById('heart-icon');
+            heart.classList.add('heart-pop');
+            setTimeout(() => heart.classList.remove('heart-pop'), 300);
+        }
+
+        // Init
+        renderMap();
+        updateStats();
+
+    </script>
+</body>
+</html>
+
